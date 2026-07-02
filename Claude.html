@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F1 2026 MUN Committee - Monaco GP Pro Simulation</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap');
+
+:root {
+  --f1-red: #ff0000; 
+  --safety-yellow: #ffd000; 
+  --safety-green: #00d21d;
+  --soft-red: #ff0000; 
+  --medium-yellow: #f9d71c; 
+  --hard-white: #ffffff;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #040406;
+  color: #ffffff;
+  font-family: 'Rajdhani', sans-serif;
+}
+
+.f1b { font-family: 'Orbitron', sans-serif; font-weight: 900; }
+.f1r { font-family: 'Orbitron', sans-serif; font-weight: 400; }
+
+@keyframes blinky {
+  0%, 100% { background-color: #000000; color: var(--safety-yellow); }
+  50% { background-color: var(--safety-yellow); color: #000000; }
+}
+.blink-y { animation: blinky 1s infinite; }
+
+@keyframes blinkr {
+  0%, 100% { background-color: #000000; color: var(--f1-red); }
+  50% { background-color: var(--f1-red); color: #ffffff; }
+}
+.blink-r { animation: blinkr 1s infinite; }
+
+@keyframes pulse2 {
+  0% { opacity: 1; }
+  50% { opacity: 0.35; }
+  100% { opacity: 1; }
+}
+.pulse2 { animation: pulse2 0.8s infinite; }
+
+@keyframes trackRedPulse {
+  0%, 100% { stroke: #ff0000; filter: drop-shadow(0 0 10px #ff0000); }
+  50% { stroke: #550000; filter: none; }
+}
+@keyframes trackYellowPulse {
+  0%, 100% { stroke: #ffd000; filter: drop-shadow(0 0 10px #ffd000); }
+  50% { stroke: #6b5700; filter: none; }
+}
+@keyframes trackVSCFlash {
+  0%, 49% { stroke: #ffd000; filter: drop-shadow(0 0 10px #ffd000); }
+  50%, 100% { stroke: transparent; filter: none; }
+}
+
+.track-red-flag { animation: trackRedPulse 1.5s infinite; }
+.track-sc { animation: trackYellowPulse 1.5s infinite; }
+.track-vsc { animation: trackVSCFlash 0.8s infinite; }
+.track-sector-yellow { animation: trackYellowPulse 1s infinite; }
+
+@keyframes pitFrozen {
+  0%, 100% { filter: drop-shadow(0 0 4px #38bdf8); }
+  50% { filter: drop-shadow(0 0 9px #38bdf8); }
+}
+.pit-frozen { animation: pitFrozen 0.9s infinite; }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #09090b; }
+::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--f1-red); }
+select, input, button { font-family: 'Rajdhani', sans-serif; }
+
+.f1-tire {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background-color: #121212;
+    font-family: 'Arial Black', sans-serif;
+    font-size: 11px;
+    font-weight: 900;
+    color: #ffffff;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+.f1-tire.soft {
+    border: 3px double #e10600;
+}
+
+.f1-tire.medium {
+    border: 3px double #ffd100;
+}
+
+.f1-tire.hard {
+    border: 3px double #ffffff;
+}
+</style>
+</head>
+<body class="min-h-screen flex flex-col bg-neutral-950 text-neutral-100 selection:bg-red-600 selection:text-white">
+
+<div id="login-screen" class="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center p-4">
+  <div class="max-w-3xl w-full bg-neutral-900 border border-neutral-800 rounded-lg p-6 md:p-8 shadow-2xl text-center">
+    <div class="flex justify-center mb-4">
+      <div class="f1b text-4xl text-white tracking-widest italic flex items-center">F1<span class="text-red-600">MUN</span><span class="text-xs bg-red-600 text-white px-2 py-0.5 ml-2 rounded not-italic tracking-normal">MONACO GP</span></div>
+    </div>
+    <h2 class="text-xl font-bold tracking-wider text-white mb-1 uppercase">KOMİTE SİMÜLASYONU - GÜVENLİ ERİŞİM PANELİ</h2>
+    <p class="text-neutral-400 text-sm mb-1">Lütfen atanan yetki erişim kodunu kullanarak pit duvarına bağlanın.</p>
+    <p class="text-neutral-600 text-[11px] mb-6">Tüm katılımcıların ekranları aynı yarışı gerçek zamanlıya yakın şekilde senkronize gösterir.</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+      <input type="password" id="access-code-input" placeholder="ERİŞİM KODU" class="md:col-span-2 bg-black border border-neutral-700 text-white text-center py-3 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-600 text-lg tracking-widest uppercase font-mono">
+      <button onclick="handleLogin()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded transition-all duration-300 tracking-wider text-xs uppercase">SİSTEME BAĞLAN</button>
+    </div>
+    <div class="mt-4 pt-4 border-t border-neutral-800 text-left max-h-[220px] overflow-y-auto pr-1">
+      <span class="text-xs text-neutral-500 font-bold uppercase tracking-wider block mb-2">Sisteme Tanımlı Tüm Yetki Kodları:</span>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-[11px] text-neutral-400">
+        <div class="border-b border-neutral-800/40 pb-1 col-span-full font-bold text-neutral-500 uppercase">ÖZEL YÖNETİCİLER:</div>
+        <div>🔴 Yarış Dir: <code class="bg-black px-1 py-0.5 rounded text-red-400 font-mono">RACE-DIR</code></div>
+        <div>👑 USG/Chair: <code class="bg-black px-1 py-0.5 rounded text-yellow-400 font-mono">CHAIR</code></div>
+        <div>📺 Canlı Yayın: <code class="bg-black px-1 py-0.5 rounded text-sky-400 font-mono">PRO-TV</code></div>
+        <div class="border-b border-neutral-800/40 pt-1 pb-1 col-span-full font-bold text-neutral-500 uppercase">TAKIM PATRONLARI:</div>
+        <div>🏎️ Ferrari: <code class="bg-black px-1 rounded text-red-500 font-mono">FER-TP</code></div>
+        <div>🏎️ Red Bull: <code class="bg-black px-1 rounded text-blue-400 font-mono">RBR-TP</code></div>
+        <div>🏎️ Mercedes: <code class="bg-black px-1 rounded text-teal-400 font-mono">MER-TP</code></div>
+        <div>🏎️ McLaren: <code class="bg-black px-1 rounded text-orange-400 font-mono">MCL-TP</code></div>
+        <div>🏎️ Aston Martin: <code class="bg-black px-1 rounded text-emerald-500 font-mono">AMR-TP</code></div>
+        <div>🏎️ Williams: <code class="bg-black px-1 rounded text-blue-300 font-mono">WIL-TP</code></div>
+        <div>🏎️ Alpine: <code class="bg-black px-1 rounded text-sky-500 font-mono">ALP-TP</code></div>
+        <div>🏎️ VCARB: <code class="bg-black px-1 rounded text-indigo-400 font-mono">VCARB-TP</code></div>
+        <div>🏎️ Audi Sauber: <code class="bg-black px-1 rounded text-green-400 font-mono">KOP-TP</code></div>
+        <div>🏎️ Haas: <code class="bg-black px-1 rounded text-gray-400 font-mono">HAS-TP</code></div>
+        <div class="border-b border-neutral-800/40 pt-1 pb-1 col-span-full font-bold text-neutral-500 uppercase">HAKEMLER:</div>
+        <div>⚖️ G. Connelly: <code class="bg-black px-1 rounded font-mono">STW-GARRY</code></div>
+        <div>⚖️ D. Warwick: <code class="bg-black px-1 rounded font-mono">STW-DEREK</code></div>
+        <div>⚖️ J. Abed: <code class="bg-black px-1 rounded font-mono">STW-JOSE</code></div>
+        <div>⚖️ S. Bellot: <code class="bg-black px-1 rounded font-mono">STW-SILVIA</code></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<header class="bg-neutral-950 border-b border-neutral-900 py-3 px-6 flex flex-wrap justify-between items-center z-10 shrink-0">
+  <div class="flex items-center space-x-4">
+    <span class="f1b text-2xl tracking-widest text-white italic">F1<span class="text-red-600">MUN</span></span>
+    <div class="h-6 w-[1px] bg-neutral-800"></div>
+    <div id="role-badge" class="bg-red-600/10 border border-red-600/30 text-red-500 text-xs px-3 py-1 rounded font-bold uppercase tracking-wider">Yükleniyor...</div>
+  </div>
+  <div class="flex items-center space-x-6 my-2 md:my-0">
+    <div class="flex items-center space-x-2">
+      <span class="text-neutral-500 text-xs font-bold uppercase">TUR:</span>
+      <span id="lap-counter" class="f1b text-white text-lg">0 / 78</span>
+    </div>
+    <div class="h-6 w-[1px] bg-neutral-800"></div>
+    <div id="status-flag-pill" class="px-4 py-1 rounded font-bold tracking-widest text-xs uppercase transition-all duration-300 bg-emerald-600 text-white">GREEN FLAG</div>
+    <div class="h-6 w-[1px] bg-neutral-800"></div>
+    <div id="sync-status" class="text-[10px] font-bold uppercase tracking-wider text-neutral-500">SENKRONİZE EDİLİYOR...</div>
+  </div>
+  <button onclick="logout()" class="text-neutral-400 hover:text-red-500 text-xs font-bold uppercase tracking-wider transition-colors">GÜVENLİ ÇIKIŞ</button>
+</header>
+
+<main class="flex-1 grid grid-cols-1 xl:grid-cols-12 overflow-hidden h-full">
+  <div class="xl:col-span-7 flex flex-row relative bg-neutral-950/60 p-4 border-r border-neutral-900 overflow-hidden min-h-0">
+    <div id="start-lights" class="absolute top-4 left-1/2 -translate-x-1/2 hidden grid-cols-5 gap-3 bg-neutral-900/95 border-2 border-neutral-800 p-4 rounded shadow-2xl z-30">
+      <div class="w-8 h-8 rounded-full bg-red-950 border border-neutral-800 transition-colors duration-300" id="l1"></div>
+      <div class="w-8 h-8 rounded-full bg-red-950 border border-neutral-800 transition-colors duration-300" id="l2"></div>
+      <div class="w-8 h-8 rounded-full bg-red-950 border border-neutral-800 transition-colors duration-300" id="l3"></div>
+      <div class="w-8 h-8 rounded-full bg-red-950 border border-neutral-800 transition-colors duration-300" id="l4"></div>
+      <div class="w-8 h-8 rounded-full bg-red-950 border border-neutral-800 transition-colors duration-300" id="l5"></div>
+    </div>
+
+    <div id="leaderboard-wrapper" class="w-[210px] h-full flex flex-col shrink-0 bg-black/95 border border-neutral-800 rounded overflow-hidden z-10 relative">
+      <div id="dynamic-stripe" class="absolute left-0 top-0 w-1 h-0 transition-all duration-500 z-20"></div>
+      <div class="bg-neutral-900 border-b border-neutral-800 py-3 flex justify-center items-center">
+        <span class="f1b text-sm text-red-600">F1</span>
+      </div>
+      <div id="flag-panel" class="h-0 overflow-hidden transition-all duration-300 flex flex-col bg-neutral-900 text-center">
+        <div class="py-1.5 text-xs font-bold uppercase tracking-widest text-black" id="f-title"></div>
+        <div class="py-1 text-[10px] font-bold text-neutral-400 bg-black/40" id="f-content"></div>
+      </div>
+      <div class="flex-grow overflow-y-auto" id="ui-grid"></div>
+    </div>
+
+    <div id="track-container" class="flex-1 flex flex-col items-center justify-center relative p-4 select-none min-w-0">
+      <div class="absolute top-4 right-4 bg-neutral-900/60 border border-neutral-800/80 rounded p-2 text-[10px] font-bold text-neutral-400 z-10">📍 MONACO GP TELEMETRY</div>
+      <svg id="monaco-svg" viewBox="0 0 767 800" class="w-full max-h-[85vh] text-neutral-800 filter drop-shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+        <path id="main-track" class="fill-none stroke-neutral-900 stroke-[12] stroke-linejoin-round stroke-linecap-round" d="M 104.50658,653.97079 C 104.50658,653.97079 84.965034,629.56873 79.834481,596.08515 C 79.834481,596.08515 74.973956,554.23062 75.243997,532.3584 C 75.243997,532.3584 77.404225,475.92227 85.50508,450.80965 C 85.50508,450.80965 93.335916,414.35577 109.26763,387.89296 L 130.86994,353.05921 C 130.86994,353.05921 134.82662,338.97228 148.55254,344.16813 C 148.55254,344.16813 164.35349,348.1987 189.46616,348.1987 L 339.60219,344.95836 C 339.60219,344.95836 350.40331,344.41832 369.57538,337.39752 C 369.57538,337.39752 382.80679,333.6172 398.73845,333.6172 L 464.89557,330.64679 C 464.89557,330.64679 470.02615,332.80707 485.68779,322.27592 L 501.88952,308.50449 C 501.88952,308.50449 510.80047,296.08313 508.91022,291.22263 C 508.91022,291.22263 509.45033,284.20187 507.29006,278.53133 L 486.7679,237.48687 C 486.7679,237.48687 482.17744,228.90319 483.44088,219.42358 C 483.44088,219.42358 483.46952,211.9309 486.48858,209.16245 L 578.03766,122.45467 C 578.03766,122.45467 589.37879,111.92347 595.31947,111.92347 C 595.31947,111.92347 605.04054,109.49323 604.23043,121.10449 C 604.23043,121.10449 603.96043,158.09841 606.9307,172.13996 L 610.98113,190.77187 C 610.98113,190.77187 612.06126,202.38316 621.24229,200.76303 C 621.24229,200.76303 629.07308,200.49299 629.34315,190.77187 L 628.533,162.68893 C 628.533,162.68893 625.56265,148.37737 642.57452,147.83732 L 670.11743,146.75721 C 670.11743,146.75721 681.72868,145.13703 679.2984,160.52866 L 671.4676,194.01228 C 671.4676,194.01228 651.48542,262.59958 609.3609,309.5846 C 609.3609,309.5846 552.9249,355.21942 502.4296,366.29061 C 502.4296,366.29061 485.68779,372.23126 445.4535,373.58144 L 349.85202,375.86671 C 349.85202,375.86671 345.85264,380.74992 346.08288,385.46271 L 345.12781,394.57255 C 345.12781,394.57255 336.70589,395.4736 333.41139,395.55892 L 310.68925,395.55892 L 300.98805,390.32318 C 300.98805,390.32318 291.8071,382.2223 281.81601,384.38256 L 221.59959,384.65261 L 180.2852,386.27274 C 180.2852,386.27274 161.65323,385.46271 154.63245,402.47446 C 154.63245,402.47446 143.70623,423.70454 134.42303,477.53919 L 140.46862,483.78999 C 140.46862,483.78999 143.75175,485.72297 144.35154,493.48856 L 145.51777,552.0814 C 145.51777,552.0814 145.45152,560.71138 133.03009,576.91313 C 133.03009,576.91313 124.37277,587.95117 130.04328,610.09356 C 130.04328,610.09356 138.7007,636.31942 162.46329,654.41137 C 162.46329,654.41137 180.01513,670.61309 191.6264,674.93354 C 191.6264,674.93354 205.93792,680.33415 204.04778,693.83555 C 204.04778,693.83555 204.04778,703.82663 190.27624,703.28655 L 116.34799,695.18571 C 116.34799,695.18571 102.80682,695.4359 106.85727,682.20447 C 106.85727,682.20447 115.06333,666.1136 104.50658,653.97079 z" />
+        <path id="sector-overlay" class="fill-none stroke-transparent stroke-[8] stroke-linejoin-round stroke-linecap-round transition-all duration-300" d="M 104.50658,653.97079 C 104.50658,653.97079 84.965034,629.56873 79.834481,596.08515 C 79.834481,596.08515 74.973956,554.23062 75.243997,532.3584 C 75.243997,532.3584 77.404225,475.92227 85.50508,450.80965 C 85.50508,450.80965 93.335916,414.35577 109.26763,387.89296 L 130.86994,353.05921 C 130.86994,353.05921 134.82662,338.97228 148.55254,344.16813 C 148.55254,348.1987 164.35349,348.1987 189.46616,348.1987 L 339.60219,344.95836 C 339.60219,344.95836 350.40331,344.41832 369.57538,337.39752 C 369.57538,337.39752 382.80679,333.6172 398.73845,333.6172 L 464.89557,330.64679 C 464.89557,330.64679 470.02615,332.80707 485.68779,322.27592 L 501.88952,308.50449 C 501.88952,308.50449 510.80047,296.08313 508.91022,291.22263 C 508.91022,291.22263 509.45033,284.20187 507.29006,278.53133 L 486.7679,237.48687 C 486.7679,237.48687 482.17744,228.90319 483.44088,219.42358 C 483.44088,219.42358 483.46952,211.9309 486.48858,209.16245 L 578.03766,122.45467 C 578.03766,122.45467 589.37879,111.92347 595.31947,111.92347 C 595.31947,111.92347 605.04054,109.49323 604.23043,121.10449 C 604.23043,121.10449 603.96043,158.09841 606.9307,172.13996 L 610.98113,190.77187 C 610.98113,190.77187 612.06126,202.38316 621.24229,200.76303 C 621.24229,200.49299 629.07308,200.49299 629.34315,190.77187 L 628.533,162.68893 C 628.533,162.68893 625.56265,148.37737 642.57452,147.83732 L 670.11743,146.75721 C 670.11743,146.75721 681.72868,145.13703 679.2984,160.52866 L 671.4676,194.01228 C 671.4676,194.01228 651.48542,262.59958 609.3609,309.5846 C 609.3609,309.5846 552.9249,355.21942 502.4296,366.29061 C 502.4296,366.29061 485.68779,372.23126 445.4535,373.58144 L 349.85202,375.86671 C 349.85202,375.86671 345.85264,380.74992 346.08288,385.46271 L 345.12781,394.57255 C 345.12781,394.57255 336.70589,395.4736 333.41139,395.55892 L 310.68925,395.55892 L 300.98805,390.32318 C 300.98805,390.32318 291.8071,382.2223 281.81601,384.38256 L 221.59959,384.65261 L 180.2852,386.27274 C 180.2852,386.27274 161.65323,385.46271 154.63245,402.47446 C 154.63245,402.47446 143.70623,423.70454 134.42303,477.53919 L 140.46862,483.78999 C 140.46862,483.78999 143.75175,485.72297 144.35154,493.48856 L 145.51777,552.0814 C 145.51777,552.0814 145.45152,560.71138 133.03009,576.91313 C 133.03009,576.91313 124.37277,587.95117 130.04328,610.09356 C 130.04328,610.09356 138.7007,636.31942 162.46329,654.41137 C 162.46329,654.41137 180.01513,670.61309 191.6264,674.93354 C 191.6264,674.93354 205.93792,680.33415 204.04778,693.83555 C 204.04778,703.82663 204.04778,703.82663 190.27624,703.28655 L 116.34799,695.18571 C 116.34799,695.18571 102.80682,695.4359 106.85727,682.20447 C 106.85727,682.20447 115.06333,666.1136 104.50658,653.97079 z" />
+        <g id="car-layer"></g>
+      </svg>
+      <div id="penalty-overlay" class="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl bg-black/95 border-2 border-red-600 rounded-lg p-4 flex items-center justify-between shadow-2xl z-40 hidden">
+        <div class="flex items-center space-x-4">
+          <div class="bg-red-600/15 p-2 rounded"><span class="text-red-500 font-black text-3xl">⚠️</span></div>
+          <div>
+            <span class="text-red-600 f1b text-xs tracking-widest block" id="po-title">OLAY</span>
+            <div class="flex items-baseline space-x-1">
+              <span class="text-white text-lg" id="po-name">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="xl:col-span-5 flex flex-col h-full bg-neutral-900/40 overflow-y-auto p-4 space-y-4">
+    <div class="bg-black/85 border border-neutral-900 rounded p-4">
+      <div class="flex justify-between items-center mb-2">
+        <span class="f1b text-xs tracking-widest text-neutral-400 uppercase">CANLI TELEMETRİ (20 PİLOT)</span>
+        <span class="text-[9px] bg-red-600/10 border border-red-600/30 text-red-500 px-2 py-0.5 rounded font-bold uppercase">LIVE</span>
+      </div>
+      <div class="overflow-x-auto max-h-[190px]">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-neutral-800 text-[10px] text-neutral-500 uppercase font-bold tracking-wider">
+              <th class="pb-1">POS</th><th class="pb-1">PİLOT</th><th class="pb-1 text-center">LASTİK</th><th class="pb-1 text-right">FARK</th><th class="pb-1 text-right">AŞINMA</th><th class="pb-1 text-right">DURUM</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body" class="text-xs font-bold tracking-wide"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-black/85 border border-neutral-900 rounded p-4 flex flex-col h-[220px]">
+      <div class="flex justify-between items-center mb-2">
+        <span class="f1b text-xs tracking-widest text-neutral-400 uppercase">TELSİZ VE STRATEJİ ODASI</span>
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+      </div>
+      <div id="chat-messages" class="flex-1 overflow-y-auto space-y-2 p-2 bg-neutral-950/80 rounded border border-neutral-900 text-xs font-mono"></div>
+      <div class="mt-2 flex space-x-2">
+        <input type="text" id="chat-input" placeholder="Telsiz mesajı veya komite direktifi..." class="flex-1 bg-black border border-neutral-800 rounded px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-600 text-neutral-100">
+        <button onclick="sendChatMessage()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded text-xs uppercase tracking-wider">GÖNDER</button>
+      </div>
+    </div>
+
+    <div id="workspace-container" class="bg-black/85 border border-neutral-900 rounded p-4 flex-1">
+      <div class="text-center py-8 text-neutral-500 font-bold uppercase tracking-widest text-xs">Lütfen yetki kodu ile pit duvarına bağlanın...</div>
+    </div>
+  </div>
+</main>
+
+<footer class="bg-neutral-950 border-t border-neutral-900 py-3 px-6 flex justify-between items-center text-[10px] text-neutral-500 uppercase font-bold tracking-wider shrink-0">
+  <div>F1 2026 MUN COGNITIVE SYSTEMS &copy; COMMITTEE ADVISOR</div>
+  <div class="flex items-center space-x-2"><span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span>SİMÜLASYON AKTİF</span></div>
+</footer>
+
+<div id="custom-modal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 hidden">
+  <div class="max-w-md w-full bg-neutral-950 border-2 border-yellow-500 rounded-lg p-6 text-center shadow-2xl relative">
+    <span id="modal-title" class="f1b text-lg tracking-widest text-yellow-500 uppercase block mb-3">YARIŞ OLAYI</span>
+    <div class="max-h-[300px] overflow-y-auto text-left mb-6 pr-1 font-mono text-xs"><p id="modal-body" class="text-neutral-200 leading-relaxed"></p></div>
+    <button onclick="closeModal()" class="w-full bg-neutral-900 hover:bg-neutral-800 border border-yellow-500/30 text-white font-bold py-2 px-4 rounded transition-all uppercase text-xs tracking-wider">ANLAŞILDI</button>
+  </div>
+</div>
+
+<script>
+// ================= DRIVERS =================
+const drivers = [
+  {abbr:'LEC',color:'#e80020',tire:'S',team:'FER',fname:'Charles',lname:'LECLERC',skill:1.02},
+  {abbr:'NOR',color:'#ff8000',tire:'M',team:'MCL',fname:'Lando',lname:'NORRIS',skill:1.03},
+  {abbr:'HAM',color:'#e80020',tire:'S',team:'FER',fname:'Lewis',lname:'HAMILTON',skill:1.01},
+  {abbr:'VER',color:'#3671C6',tire:'H',team:'RBR',fname:'Max',lname:'VERSTAPPEN',skill:1.05},
+  {abbr:'PIA',color:'#ff8000',tire:'M',team:'MCL',fname:'Oscar',lname:'PIASTRI',skill:1.02},
+  {abbr:'RUS',color:'#27f4d2',tire:'H',team:'MER',fname:'George',lname:'RUSSELL',skill:1.0},
+  {abbr:'ANT',color:'#27f4d2',tire:'S',team:'MER',fname:'Kimi',lname:'ANTONELLI',skill:0.99},
+  {abbr:'ALO',color:'#229971',tire:'M',team:'AMR',fname:'Fernando',lname:'ALONSO',skill:1.0},
+  {abbr:'SAI',color:'#00a0de',tire:'H',team:'WIL',fname:'Carlos',lname:'SAINZ',skill:0.99},
+  {abbr:'GAS',color:'#0093cc',tire:'S',team:'ALP',fname:'Pierre',lname:'GASLY',skill:0.98},
+  {abbr:'PER',color:'#3671C6',tire:'M',team:'RBR',fname:'Sergio',lname:'PEREZ',skill:0.98},
+  {abbr:'ALB',color:'#00a0de',tire:'H',team:'WIL',fname:'Alexander',lname:'ALBON',skill:0.98},
+  {abbr:'TSU',color:'#6692ff',tire:'S',team:'VCARB',fname:'Yuki',lname:'TSUNODA',skill:0.97},
+  {abbr:'LAW',color:'#6692ff',tire:'M',team:'VCARB',fname:'Liam',lname:'LAWSON',skill:0.97},
+  {abbr:'HUL',color:'#52e252',tire:'H',team:'KOP',fname:'Nico',lname:'HULKENBERG',skill:0.97},
+  {abbr:'BOR',color:'#52e252',tire:'S',team:'KOP',fname:'Gabriel',lname:'BORTOLETO',skill:0.96},
+  {abbr:'OCO',color:'#b6babd',tire:'M',team:'HAS',fname:'Esteban',lname:'OCON',skill:0.96},
+  {abbr:'BEA',color:'#b6babd',tire:'H',team:'HAS',fname:'Oliver',lname:'BEARMAN',skill:0.96},
+  {abbr:'STR',color:'#229971',tire:'S',team:'AMR',fname:'Lance',lname:'STROLL',skill:0.95},
+  {abbr:'COL',color:'#0093cc',tire:'M',team:'ALP',fname:'Franco',lname:'COLAPINTO',skill:0.95}
+];
+
+const TEAMS = {
+  FER:{name:'Scuderia Ferrari HP',color:'#e80020'}, RBR:{name:'Red Bull Racing',color:'#3671C6'},
+  MER:{name:'Mercedes AMG F1',color:'#27F4D2'}, MCL:{name:'McLaren Racing',color:'#FF8000'},
+  AMR:{name:'Aston Martin F1',color:'#229971'}, ALP:{name:'Alpine F1 Team',color:'#0093CC'},
+  WIL:{name:'Williams Racing',color:'#00a0de'}, VCARB:{name:'Racing Bulls F1',color:'#6692ff'},
+  KOP:{name:'Audi F1 (Sauber)',color:'#52e252'}, HAS:{name:'Haas F1 Team',color:'#B6BABD'}
+};
+const STEWARDS = {GARRY:'Garry Connelly',DEREK:'Derek Warwick',JOSE:'José Abed',SILVIA:'Silvia Bellot'};
+
+// ================= STATE =================
+const LAP_SECONDS = 72;        
+const TICK_MS = 150;          
+const TICKS_PER_LAP = LAP_SECONDS * 1000 / TICK_MS; 
+const UNIT = 1 / TICKS_PER_LAP;
+const PIT_STOP_MIN_MS = 19000;
+const PIT_STOP_MAX_MS = 20000;
+
+function freshDrivers(){
+  return drivers.map((d,i)=>{
+    const startProgress = 0.95 - i*0.02;
+    return {...d, progress: startProgress, totalDistance: startProgress, tyreWear: Math.random()*5, status:'OK', isDSQ:false, penalty:null, hidden:false};
+  });
+}
+
+let state = {
+  lap: 1, maxLaps: 78, flagStatus: 'NORMAL', yellowSector: null,
+  drivers: freshDrivers(),
+  logs: [{time:getTimestamp(), sender:'SISTEM', message:'Monaco GP Yarış Kontrol Sistemi başlatıldı. Rollerden birini seçin.'}],
+  stewardIncidents: [],
+  _v: 0
+};
+
+let currentRole=null, currentSubRole=null, selectedDriver=null;
+let overlay, pathLen, lightInterval=null, tickInterval=null;
+
+function curvatureAt(p){
+  const wave = Math.sin(p*Math.PI*6) * 0.5 + Math.sin(p*Math.PI*2)*0.3;
+  return 1 + wave*0.45;
+}
+
+function tireClassFor(t){
+  return t==='S' ? 'soft' : (t==='M' ? 'medium' : 'hard');
+}
+
+// Ranks drivers by true cumulative race distance (accounts for laps), not just
+// the 0-1 position within the current lap, so track order, leaderboard order
+// and time gaps always agree with each other.
+function raceSort(a,b){
+  return (b.totalDistance||b.progress||0) - (a.totalDistance||a.progress||0);
+}
+
+function render(){
+  const flagPill = document.getElementById('status-flag-pill');
+  document.getElementById('lap-counter').innerText = `${state.lap} / ${state.maxLaps}`;
+  flagPill.className = "px-4 py-1 rounded font-bold tracking-widest text-xs uppercase transition-all duration-300 ";
+  const f = state.flagStatus;
+  if(f==='GREEN'||f==='NORMAL'){flagPill.className+=' bg-emerald-600 text-white';flagPill.innerText='GREEN FLAG / RACE LIVE';}
+  else if(f==='YELLOW'){flagPill.className+=' bg-amber-400 text-black blink-y';flagPill.innerText=`YELLOW FLAG - SEKTÖR ${state.yellowSector||'GENEL'}`;}
+  else if(f==='VSC'){flagPill.className+=' bg-amber-500 text-black';flagPill.innerText='VIRTUAL SAFETY CAR';}
+  else if(f==='SC'){flagPill.className+=' bg-amber-600 text-black blink-y';flagPill.innerText='SAFETY CAR DEPLOYED';}
+  else if(f==='RED'){flagPill.className+=' bg-red-600 text-white blink-r';flagPill.innerText='RED FLAG - SESSION SUSPENDED';}
+  else if(f==='STARTING'){flagPill.className+=' bg-neutral-800 text-white';flagPill.innerText='RACE START SEQUENCE';}
+
+  updateFlagPanel();
+  updateTVLeaderboard();
+  updateTelemetryTable();
+  updateRadioLog();
+  updateCarsOnTrack();
+  syncWorkspace();
+  updateTrackMapAnimation();
+  updateSyncBadge();
+}
+
+function updateSyncBadge(){
+  const el=document.getElementById('sync-status');
+  if(!el) return;
+  const role = isLeader ? 'YAYIN KAYNAĞI' : 'İZLEYİCİ';
+  el.innerText = `🔗 SENKRON (${role})`;
+  el.className = 'text-[10px] font-bold uppercase tracking-wider ' + (isLeader ? 'text-emerald-500' : 'text-sky-400');
+}
+
+function updateTrackMapAnimation() {
+  const mapOverlay = document.getElementById('sector-overlay');
+  if(!mapOverlay || !pathLen) return;
+
+  mapOverlay.className.baseVal = "fill-none stroke-[8] stroke-linejoin-round stroke-linecap-round transition-all duration-300";
+  mapOverlay.style.strokeDasharray = "none";
+  mapOverlay.style.strokeDashoffset = "0";
+  mapOverlay.style.stroke = "transparent";
+
+  const f = state.flagStatus;
+  
+  if (f === 'RED') {
+    mapOverlay.classList.add('track-red-flag');
+  } else if (f === 'SC') {
+    mapOverlay.classList.add('track-sc');
+  } else if (f === 'VSC') {
+    mapOverlay.classList.add('track-vsc');
+  } else if (f === 'YELLOW' && state.yellowSector) {
+    mapOverlay.classList.add('track-sector-yellow');
+    const third = pathLen / 3;
+    mapOverlay.style.strokeDasharray = `${third} ${pathLen}`;
+    if (state.yellowSector === 1) mapOverlay.style.strokeDashoffset = "0";
+    if (state.yellowSector === 2) mapOverlay.style.strokeDashoffset = `-${third}`;
+    if (state.yellowSector === 3) mapOverlay.style.strokeDashoffset = `-${third * 2}`;
+  }
+}
+
+function updateFlagPanel(){
+  const stripe=document.getElementById('dynamic-stripe'), panel=document.getElementById('flag-panel');
+  const title=document.getElementById('f-title'), cont=document.getElementById('f-content');
+  panel.classList.remove('pulse2');
+  if(state.flagStatus==='NORMAL'){stripe.style.height='0';stripe.style.opacity='0';panel.style.height='0';return;}
+  stripe.style.opacity='1'; stripe.style.height='140px'; panel.style.height='75px';
+  const f=state.flagStatus;
+  const map = {
+    YELLOW:['YELLOW FLAG','var(--safety-yellow)','#000',`SEKTÖR ${state.yellowSector||'GENEL'}`],
+    GREEN:['GREEN FLAG','var(--safety-green)','#fff','TRACK CLEAR'],
+    VSC:['VSC ACTIVE','var(--safety-yellow)','#000','VIRTUAL SAFETY CAR'],
+    SC:['SAFETY CAR','var(--safety-yellow)','#000','SAFETY CAR DEPLOYED'],
+    RED:['RED FLAG','var(--f1-red)','#fff','SESSION SUSPENDED']
+  };
+  if(map[f]){
+    title.innerText=map[f][0]; title.style.background=map[f][1]; title.style.color=map[f][2]; cont.innerText=map[f][3];
+    stripe.style.background=map[f][1];
+    if(f==='VSC'||f==='RED') panel.classList.add('pulse2');
+  }
+}
+
+function gapTextFor(sorted, idx){
+  const d = sorted[idx];
+  if(d.isDSQ) return 'DSQ';
+  if(d.status==='DNF_CRASH') return 'DNF';
+  if(d.status==='DNF_ENGINE') return 'DNF';
+  if(d.status==='PIT') return 'PİT';
+  if(idx===0) return 'LEADER';
+  const leaderTD = sorted[0].totalDistance || 0;
+  const gapSeconds = Math.max(0, (leaderTD - (d.totalDistance||0)) * LAP_SECONDS);
+  return `+${gapSeconds.toFixed(3)}`;
+}
+
+function updateTVLeaderboard(){
+  const grid=document.getElementById('ui-grid'); grid.innerHTML='';
+  const sorted=[...state.drivers].sort(raceSort);
+  sorted.forEach((d,i)=>{
+    const row=document.createElement('div');
+    row.className='flex items-center h-[26px] bg-neutral-900/60 border-b border-neutral-950 text-xs px-2 cursor-pointer transition-all '+
+      (d.isDSQ?' opacity-30':'')+(selectedDriver===d.abbr?' bg-neutral-800 border-l-2 border-red-600':' hover:bg-neutral-850');
+    row.onclick=()=>{selectedDriver=d.abbr; render();};
+    const gapText = gapTextFor(sorted, i);
+    let tireBadge=`<div class="f1-tire ${tireClassFor(d.tire)}">${d.tire}</div>`;
+    if(d.isDSQ) tireBadge='<div class="text-[9px] text-red-500 font-bold">OUT</div>';
+    else if(d.status==='DNF_CRASH') tireBadge='<div class="text-[9px] text-red-500 font-bold">KAZA</div>';
+    else if(d.status==='DNF_ENGINE') tireBadge='<div class="text-[9px] text-amber-500 font-bold">MOTOR</div>';
+    row.innerHTML=`<div class="w-6 text-center font-black">${i+1}</div>
+      <div class="w-1.5 h-4 mx-2 rounded" style="background:${d.color}"></div>
+      <div class="font-bold flex-1 text-white">${d.abbr}</div>
+      <div class="text-[10px] text-neutral-400 font-mono w-16 text-right pr-2">${gapText}</div>${tireBadge}`;
+    grid.appendChild(row);
+  });
+}
+
+function updateTelemetryTable(){
+  const tb=document.getElementById('leaderboard-body'); tb.innerHTML='';
+  const sorted=[...state.drivers].sort(raceSort);
+  sorted.forEach((d,idx)=>{
+    let statusMarkup='<span class="text-emerald-500 font-bold">OK</span>';
+    if(d.isDSQ) statusMarkup='<span class="text-red-600 line-through">DSQ</span>';
+    else if(d.status==='DNF_CRASH') statusMarkup='<span class="text-red-500 animate-pulse">DNF (KAZA)</span>';
+    else if(d.status==='DNF_ENGINE') statusMarkup='<span class="text-amber-500">DNF (MOTOR)</span>';
+    else if(d.status==='PIT') statusMarkup='<span class="text-sky-400 animate-pulse">BOX</span>';
+    const gapText = gapTextFor(sorted, idx);
+    const tr=document.createElement('tr');
+    tr.className='border-b border-neutral-900/60';
+    tr.innerHTML=`<td class="py-1 font-bold text-neutral-500 w-8">${idx+1}</td>
+      <td class="py-1 flex items-center space-x-1.5"><span class="w-1 h-3 inline-block rounded" style="background:${d.color}"></span><span class="text-neutral-200">${d.fname[0]}. ${d.lname}</span></td>
+      <td class="py-1 text-center"><div class="f1-tire ${tireClassFor(d.tire)} mx-auto">${d.tire}</div></td>
+      <td class="py-1 text-right text-neutral-400 font-mono text-[10px]">${gapText}</td>
+      <td class="py-1 text-right text-neutral-400">${Math.floor(d.tyreWear||0)}%</td>
+      <td class="py-1 text-right">${statusMarkup}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function updateRadioLog(){
+  const box=document.getElementById('chat-messages'); box.innerHTML='';
+  state.logs.slice(-40).forEach(log=>{
+    const isSystem=log.sender==='SISTEM';
+    const div=document.createElement('div');
+    div.className='py-1 border-b border-neutral-900/40 flex flex-col';
+    let senderMarkup=`<span class="text-red-500 font-bold">[${log.sender}]</span>`;
+    if(isSystem) senderMarkup='<span class="text-neutral-500 font-bold">[SYSTEM]</span>';
+    div.innerHTML=`<div class="flex justify-between items-center text-[9px] text-neutral-600"><span>${senderMarkup}</span><span>${log.time}</span></div>
+      <p class="text-neutral-300 mt-0.5 text-xs font-normal leading-relaxed">${log.message}</p>`;
+    box.appendChild(div);
+  });
+  box.scrollTop=box.scrollHeight;
+}
+
+function updateCarsOnTrack(){
+  state.drivers.forEach(d=>{
+    const el=document.getElementById('car-'+d.abbr);
+    if(!el || d.isDSQ || d.hidden) { 
+      if(el) el.style.display='none'; 
+      return; 
+    }
+    el.style.display='block';
+    const pt=overlay.getPointAtLength(d.progress*pathLen);
+    el.setAttribute('cx',pt.x); el.setAttribute('cy',pt.y);
+    el.classList.toggle('pit-frozen', d.status==='PIT');
+  });
+}
+
+function initCars(){
+  const layer=document.getElementById('car-layer'); layer.innerHTML='';
+  state.drivers.forEach(d=>{
+    const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('id','car-'+d.abbr); c.setAttribute('r','6');
+    c.setAttribute('fill',d.color); c.setAttribute('stroke','#000'); c.setAttribute('stroke-width','1.5');
+    c.style.cursor='pointer';
+    c.onclick=()=>{selectedDriver=d.abbr; render();};
+    layer.appendChild(c);
+  });
+}
+
+// ================= LOGIN =================
+function handleLogin(){
+  const v=document.getElementById('access-code-input').value.trim().toUpperCase();
+  if(v==='RACE-DIR'){currentRole='director';currentSubRole='Rui Marques';}
+  else if(v==='CHAIR'){currentRole='chair';currentSubRole='Chair/USG';}
+  else if(v==='PRO-TV'){currentRole='tv';currentSubRole='Canlı Yayın';}
+  else if(STEWARDS[v.replace('STW-','')]){currentRole='steward';currentSubRole=STEWARDS[v.replace('STW-','')];}
+  else if(TEAMS[v.replace('-TP','')]){currentRole='team_principal';currentSubRole=v.replace('-TP','');}
+  else { showModal('HATA','Yetkisiz erişim kodu. Lütfen kod kılavuzunu inceleyiniz.','border-red-600','text-red-500'); return; }
+
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('role-badge').innerText=`${currentRole.toUpperCase()} : ${currentSubRole}`;
+  renderRoleWorkspace();
+  state.logs.push({time:getTimestamp(),sender:'SISTEM',message:`🟢 ${currentSubRole} sisteme bağlandı.`});
+  render();
+  pushState();
+}
+function logout(){
+  state.logs.push({time:getTimestamp(),sender:'SISTEM',message:`🔴 ${currentSubRole} bağlantıyı kesti.`});
+  pushState();
+  currentRole=null; currentSubRole=null;
+  document.getElementById('login-screen').classList.remove('hidden');
+  render();
+}
+function sendChatMessage(){
+  const input=document.getElementById('chat-input');
+  const text=input.value.trim(); if(!text) return;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole||'ANONİM',message:text});
+  input.value=''; render();
+  pushState();
+}
+
+// ================= ROLE WORKSPACES =================
+function renderRoleWorkspace(){
+  const c=document.getElementById('workspace-container');
+  if(currentRole==='chair') return renderChairWorkspace(c);
+  if(currentRole==='director') return renderDirectorWorkspace(c);
+  if(currentRole==='steward') return renderStewardWorkspace(c);
+  if(currentRole==='team_principal') return renderTPWorkspace(c);
+  if(currentRole==='tv') return renderTVWorkspace(c);
+}
+
+function activeDriverOptions(selected){
+  return state.drivers.filter(d=>!d.isDSQ && !d.status.startsWith('DNF') && !d.hidden)
+    .sort(raceSort)
+    .map((d,i)=>`<option value="${d.abbr}" ${d.abbr===selected?'selected':''}>${i+1}. ${d.fname} ${d.lname} (${d.abbr})</option>`).join('');
+}
+
+function renderChairWorkspace(container){
+  container.innerHTML = `
+    <div class="flex flex-col h-full space-y-3 overflow-y-auto">
+      <div class="flex justify-between items-center border-b border-neutral-800 pb-2">
+        <h3 class="f1b text-sm tracking-widest text-yellow-500 uppercase">CHAIR / USG KONTROL PANELİ</h3>
+        <button onclick="resetSimulation()" class="bg-red-600/10 hover:bg-red-600 hover:text-white border border-red-600/30 text-red-500 text-[10px] px-2 py-0.5 rounded font-bold">RESET</button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="showLights()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">🚦 START LIGHTS</button>
+        <button onclick="extinguishLightsAndStart()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">🏁 EXTINGUISH START</button>
+        <button onclick="changeTrackFlag('GREEN')" class="bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">🟢 GREEN</button>
+        <button onclick="changeTrackFlag('VSC')" class="bg-amber-500 hover:bg-amber-600 text-black font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">⏱️ VSC</button>
+        <button onclick="changeTrackFlag('SC')" class="bg-amber-600 hover:bg-amber-700 text-black font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">🚓 SAFETY CAR</button>
+        <button onclick="changeTrackFlag('RED')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">🔴 RED FLAG</button>
+      </div>
+
+      <div class="border border-neutral-800 p-2.5 rounded bg-black/40">
+        <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block mb-1.5">MANUEL SIRALAMA DÜZENLEME</span>
+        <div id="chair-order-list" class="space-y-1 max-h-[180px] overflow-y-auto pr-1"></div>
+      </div>
+
+      <div class="border border-neutral-800 p-2.5 rounded bg-black/40 space-y-2">
+        <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block">GEÇİŞ TETİKLE (İKİ ARAÇ ARASINDA)</span>
+        <div class="grid grid-cols-2 gap-2">
+          <select id="chair-overtake-front" class="bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]"></select>
+          <select id="chair-overtake-back" class="bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]"></select>
+        </div>
+        <textarea id="chair-overtake-text" rows="2" placeholder="Geçiş açıklamasını kendiniz yazın (telsiz duyurusu)..." class="w-full bg-black border border-neutral-800 text-white px-2 py-1.5 rounded text-[11px] focus:outline-none"></textarea>
+        <button onclick="chairForceOvertake()" class="w-full bg-sky-700 hover:bg-sky-600 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">GEÇİŞİ UYGULA</button>
+      </div>
+
+      <div class="border border-neutral-800 p-2.5 rounded bg-black/40 space-y-2">
+        <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block">KAZA / ARIZA TETİKLE</span>
+        <p class="text-[9px] text-neutral-600 leading-snug">Not: Bir kaza tetiklemek bayrak durumunu otomatik değiştirmez. Gerekirse bayrağı yukarıdaki butonlarla ayrıca siz belirleyin.</p>
+        <select id="chair-crash-driver" class="w-full bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]"></select>
+        <textarea id="chair-crash-text" rows="3" placeholder="Kaza / arıza açıklamasını kendiniz yazın (telsiz duyurusu)..." class="w-full bg-black border border-neutral-800 text-white px-2 py-1.5 rounded text-[11px] focus:outline-none"></textarea>
+        <select id="chair-crash-type" class="w-full bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]">
+          <option value="DNF_CRASH">Kaza (DNF)</option>
+          <option value="DNF_ENGINE">Motor Arızası (DNF)</option>
+          <option value="PIT">Hasarla Pit'e Girer</option>
+        </select>
+        <button onclick="chairTriggerCrash()" class="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">OLAYI UYGULA</button>
+      </div>
+    </div>
+  `;
+  populateChairSelectors();
+}
+
+function populateChairSelectors(){
+  const front=document.getElementById('chair-overtake-front');
+  const back=document.getElementById('chair-overtake-back');
+  const crash=document.getElementById('chair-crash-driver');
+  const opts = activeDriverOptions();
+  if(front) front.innerHTML = opts;
+  if(back) back.innerHTML = opts;
+  if(crash) crash.innerHTML = opts;
+  renderChairOrderList();
+}
+
+function renderChairOrderList(){
+  const list=document.getElementById('chair-order-list');
+  if(!list) return;
+  const sorted=[...state.drivers].filter(d=>!d.isDSQ && !d.status.startsWith('DNF')).sort(raceSort);
+  list.innerHTML='';
+  sorted.forEach((d,i)=>{
+    const row=document.createElement('div');
+    row.className='flex items-center justify-between bg-neutral-900/60 px-2 py-1 rounded text-[11px]';
+    row.innerHTML=`<span class="text-white font-bold w-6">${i+1}</span>
+      <span class="flex-1 text-neutral-300">${d.abbr}</span>
+      <div class="flex space-x-1">
+        <button onclick="chairMoveDriver('${d.abbr}',-1)" class="bg-neutral-800 hover:bg-neutral-700 px-2 rounded text-white">▲</button>
+        <button onclick="chairMoveDriver('${d.abbr}',1)" class="bg-neutral-800 hover:bg-neutral-700 px-2 rounded text-white">▼</button>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+
+function chairMoveDriver(abbr, dir){
+  const sorted=[...state.drivers].filter(d=>!d.isDSQ && !d.status.startsWith('DNF')).sort(raceSort);
+  const idx=sorted.findIndex(d=>d.abbr===abbr);
+  const swapIdx = idx+dir;
+  if(swapIdx<0 || swapIdx>=sorted.length) return;
+  const a=sorted[idx], b=sorted[swapIdx];
+  const tmp=a.totalDistance; a.totalDistance=b.totalDistance; b.totalDistance=tmp;
+  a.totalDistance += dir<0 ? 0.0005 : -0.0005;
+  // keep on-track marker in the same neighbourhood as the new distance
+  a.progress = ((a.progress||0) + (dir<0?0.0005:-0.0005) + 1) % 1;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`👑 CHAIR: Sıralama manuel olarak güncellendi (${abbr} ${dir<0?'yükseldi':'düştü'}).`});
+  render();
+  pushState();
+}
+
+function chairForceOvertake(){
+  const frontAbbr=document.getElementById('chair-overtake-front').value; 
+  const backAbbr=document.getElementById('chair-overtake-back').value;   
+  const text=document.getElementById('chair-overtake-text').value.trim();
+  if(frontAbbr===backAbbr){ showModal('HATA','Aynı aracı seçtiniz.','border-red-600','text-red-500'); return; }
+  const front=state.drivers.find(d=>d.abbr===frontAbbr);
+  const back=state.drivers.find(d=>d.abbr===backAbbr);
+  if(!front||!back) return;
+  back.progress = (front.progress + 0.004) % 1;
+  back.totalDistance = (front.totalDistance||0) + 0.004;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message: text || `👑 CHAIR: ${back.abbr}, ${front.abbr} önüne geçti.`});
+  document.getElementById('chair-overtake-text').value='';
+  render();
+  pushState();
+}
+
+function chairTriggerCrash(){
+  const abbr=document.getElementById('chair-crash-driver').value;
+  const text=document.getElementById('chair-crash-text').value.trim();
+  const typeChoice=document.getElementById('chair-crash-type').value;
+  const driver=state.drivers.find(d=>d.abbr===abbr);
+  if(!driver) return;
+  if(!text){ showModal('EKSİK AÇIKLAMA','Lütfen olay açıklamasını yazın.','border-red-600','text-red-500'); return; }
+
+  // Not: bayrak durumu burada KASITLI olarak değiştirilmez. Kaza ve bayrak
+  // kararları birbirinden bağımsızdır; gerekirse bayrağı Chair ayrıca seçer.
+  driver.status = typeChoice;
+  if(typeChoice==='PIT'){ driver.tyreWear = 100; }
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:text});
+  document.getElementById('chair-crash-text').value='';
+
+  if(typeChoice!=='PIT'){
+    document.getElementById('po-title').innerText = typeChoice==='DNF_CRASH' ? 'KAZA / DNF' : 'MOTOR ARIZASI / DNF';
+    document.getElementById('po-name').innerText = `${driver.fname} ${driver.lname}`;
+    const ov=document.getElementById('penalty-overlay');
+    ov.classList.remove('hidden'); ov.style.display='flex';
+    setTimeout(()=>{ov.style.display='none'; ov.classList.add('hidden');},6000);
+  } else {
+    setTimeout(()=>{
+      const d=state.drivers.find(x=>x.abbr===abbr);
+      if(d && d.status==='PIT'){
+        d.status='OK'; d.tyreWear=0;
+        state.logs.push({time:getTimestamp(),sender:'SISTEM',message:`🟢 ${d.fname} ${d.lname} hasar kontrolünün ardından piste geri döndü.`});
+        render();
+        pushState();
+      }
+    },6000);
+  }
+  render();
+  pushState();
+}
+
+function resetSimulation(){
+  state = {
+    lap:1, maxLaps:78, flagStatus:'NORMAL', yellowSector:null,
+    drivers: freshDrivers(),
+    logs:[{time:getTimestamp(),sender:'SISTEM',message:'Simülasyon sıfırlandı.'}],
+    stewardIncidents:[],
+    _v: (state._v||0) + 1
+  };
+  render();
+  pushState();
+  showModal('YARIŞ SIFIRLANDI','Simülasyon durumları ve tüm 20 pilot kaydı tamamen sıfırlanmıştır.','border-red-600','text-red-500');
+}
+
+function renderDirectorWorkspace(container){
+  container.innerHTML = `
+    <div class="flex flex-col h-full space-y-3">
+      <h3 class="f1b text-sm tracking-widest text-red-500 border-b border-neutral-800 pb-2 uppercase">YARIŞ DİREKTÖRÜ (${currentSubRole})</h3>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="showLights()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 rounded text-[11px] uppercase">🚦 START LIGHTS</button>
+        <button onclick="extinguishLightsAndStart()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-[11px] uppercase">🏁 EXTINGUISH</button>
+        <button onclick="changeTrackFlag('GREEN')" class="bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-1.5 rounded text-[11px] uppercase">🟢 GREEN</button>
+        <button onclick="changeTrackFlag('VSC')" class="bg-amber-500 hover:bg-amber-600 text-black font-bold py-1.5 rounded text-[11px] uppercase">⏱️ VSC</button>
+        <button onclick="changeTrackFlag('SC')" class="bg-amber-600 hover:bg-amber-700 text-black font-bold py-1.5 rounded text-[11px] uppercase">🚓 SC</button>
+        <button onclick="changeTrackFlag('RED')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 rounded text-[11px] uppercase">🔴 RED</button>
+      </div>
+      <div class="border border-neutral-800 p-2.5 rounded bg-black/40">
+        <span class="text-[10px] text-neutral-500 font-bold uppercase block mb-1.5">Sektörel Sarı Bayrak</span>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="triggerSectorYellow(1)" class="bg-neutral-900 border border-amber-500/30 text-amber-500 text-[10px] py-1 rounded font-bold">SECTOR 1</button>
+          <button onclick="triggerSectorYellow(2)" class="bg-neutral-900 border border-amber-500/30 text-amber-500 text-[10px] py-1 rounded font-bold">SECTOR 2</button>
+          <button onclick="triggerSectorYellow(3)" class="bg-neutral-900 border border-amber-500/30 text-amber-500 text-[10px] py-1 rounded font-bold">SECTOR 3</button>
+        </div>
+      </div>
+      <div class="border border-neutral-800 p-2.5 rounded bg-black/40 space-y-2">
+        <span class="text-[10px] text-neutral-500 font-bold uppercase block">CEZA SEVKİ</span>
+        <div class="text-white text-xs font-bold" id="sel-driver-txt">Pilot: ${selectedDriver||'Seçilmedi (haritadan tıklayın)'}</div>
+        <button onclick="submitRDIncident()" class="w-full bg-neutral-900 hover:bg-neutral-800 text-[10px] font-bold py-1.5 rounded border border-neutral-800">HAKEM ODASINA SEVK (5s CEZA)</button>
+      </div>
+    </div>`;
+}
+
+function submitRDIncident(){
+  if(!selectedDriver){ showModal('EKSİK SEÇİM','Lütfen sol sıralama panelinden bir pilot seçin.','border-red-600','text-red-500'); return; }
+  const driver=state.drivers.find(d=>d.abbr===selectedDriver);
+  state.stewardIncidents.push({id:Math.random().toString(36).slice(2,9), driverAbbr:selectedDriver, driverName:`${driver.fname} ${driver.lname}`, penaltyType:'5 SANİYE', votes:{}, status:'PENDING'});
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`⚖️ SORUŞTURMA SEVKİ: ${driver.fname} ${driver.lname} için 5 saniye ceza talebi Hakem Odasına sevk edildi.`});
+  render();
+  pushState();
+}
+
+function renderStewardWorkspace(container){
+  container.innerHTML = `
+    <div class="flex flex-col h-full space-y-3">
+      <h3 class="f1b text-sm tracking-widest text-emerald-500 border-b border-neutral-800 pb-2 uppercase">HAKEM ODASI (${currentSubRole})</h3>
+      <div id="steward-active-incident" class="bg-black/60 p-3 rounded border border-neutral-800 flex-1 flex flex-col justify-center items-center text-center"></div>
+      <div class="grid grid-cols-2 gap-2 mt-auto">
+        <button onclick="voteStewardIncident('GUILTY')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 rounded uppercase">SUÇLU / CEZA ONAYLA</button>
+        <button onclick="voteStewardIncident('NOT_GUILTY')" class="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-bold py-2 rounded uppercase">YARIŞ KAZASI / CEZA YOK</button>
+      </div>
+    </div>`;
+}
+function voteStewardIncident(vote){
+  const pending=state.stewardIncidents.find(i=>i.status==='PENDING');
+  if(!pending){ showModal('YOK','Aktif oylanacak inceleme bulunmamaktadır.','border-neutral-500','text-neutral-500'); return; }
+  pending.votes[currentSubRole]=vote;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`⚖️ Hakem ${currentSubRole}, ${pending.driverName} olayı için oy kullandı.`});
+  const votes=Object.values(pending.votes);
+  if(votes.length>=2){
+    const guilty=votes.filter(v=>v==='GUILTY').length;
+    if(guilty>=votes.length-guilty){
+      pending.status='APPROVED';
+      const d=state.drivers.find(x=>x.abbr===pending.driverAbbr);
+      if(d) d.penalty='5s';
+      state.logs.push({time:getTimestamp(),sender:'HAKEMLER KURULU',message:`🚨 RESMİ KARAR: ${pending.driverName} için ceza kabul edildi!`});
+    } else {
+      pending.status='DISMISSED';
+      state.logs.push({time:getTimestamp(),sender:'HAKEMLER KURULU',message:`🛡️ RESMİ KARAR: ${pending.driverName} olayı 'Yarış Kazası' olarak kapatıldı.`});
+    }
+  }
+  render();
+  pushState();
+}
+
+function renderTPWorkspace(container){
+  const teamData=TEAMS[currentSubRole]||{name:'TAKIM',color:'#ff0000'};
+  container.innerHTML = `
+    <div class="flex flex-col h-full space-y-3">
+      <h3 class="f1b text-sm tracking-widest uppercase border-b border-neutral-800 pb-2" style="color:${teamData.color}">${teamData.name} PIT DUVARI</h3>
+      <div class="bg-black/40 p-2.5 rounded border border-neutral-800 space-y-2">
+        <span class="text-[10px] text-neutral-400 font-bold uppercase block">TAKIM SÜRÜCÜSÜ PİT STRATEJİSİ</span>
+        <div id="tp-drivers-container" class="space-y-3"></div>
+      </div>
+    </div>`;
+  renderTPDrivers();
+}
+function renderTPDrivers(){
+  const container=document.getElementById('tp-drivers-container');
+  if(!container) return;
+  const teamDrivers=state.drivers.filter(d=>d.team===currentSubRole);
+  container.innerHTML='';
+  teamDrivers.forEach(d=>{
+    const div=document.createElement('div');
+    div.className='flex items-center justify-between border-b border-neutral-900 pb-3 last:border-b-0 text-xs';
+    const pitLabel = d.status==='PIT' ? '<span class="text-sky-400 font-bold animate-pulse ml-1">(PİT BOKSUNDA - LASTİK DEĞİŞİYOR)</span>' : '';
+    div.innerHTML=`<div><span class="font-bold text-white block">${d.fname} ${d.lname} (${d.abbr})</span>
+      <span class="text-[10px] text-neutral-400">Lastik: <span class="font-bold">${d.tire}</span> (Aşınma %${Math.floor(d.tyreWear||0)}) - Durum: ${d.status}</span>${pitLabel}</div>
+      <div class="flex space-x-1.5">
+        <select id="tire-choice-${d.abbr}" class="bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]" ${d.status==='PIT'?'disabled':''}>
+          <option value="S">Soft (S)</option><option value="M">Medium (M)</option><option value="H">Hard (H)</option>
+        </select>
+        <button onclick="triggerTPPitstop('${d.abbr}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1 rounded text-[10px] uppercase" ${d.status==='PIT'?'disabled':''}>BOX</button>
+      </div>`;
+    container.appendChild(div);
+  });
+}
+function triggerTPPitstop(abbr){
+  const sel=document.getElementById(`tire-choice-${abbr}`); if(!sel) return;
+  const driver=state.drivers.find(d=>d.abbr===abbr);
+  if(!driver) return;
+  if(driver.status.startsWith('DNF')||driver.isDSQ){ showModal('KURAL İHLALİ','Yarış dışı kalmış bir araca pit stop uygulanamaz.','border-red-600','text-red-500'); return; }
+  if(driver.status==='PIT'){ return; }
+  const newTire = sel.value;
+  driver.status='PIT';
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`🔧 ${driver.fname} ${driver.lname} pite girdi, lastik değişimi yapılıyor... (Yeni lastik: [${newTire}])`});
+  render();
+  pushState();
+  const pitDuration = PIT_STOP_MIN_MS + Math.random()*(PIT_STOP_MAX_MS - PIT_STOP_MIN_MS);
+  setTimeout(()=>{
+    const d=state.drivers.find(x=>x.abbr===abbr);
+    if(d && d.status==='PIT'){
+      d.status='OK'; d.tire=newTire; d.tyreWear=0;
+      state.logs.push({time:getTimestamp(),sender:'SISTEM',message:`🟢 ${d.fname} ${d.lname} pit çıkışından temiz havaya döndü. (Lastik: [${newTire}])`});
+      render();
+      pushState();
+    }
+  }, pitDuration);
+}
+
+function renderTVWorkspace(container){
+  container.innerHTML = `<div class="flex flex-col h-full justify-center items-center text-center space-y-4 p-8">
+    <span class="inline-block w-4 h-4 rounded-full bg-red-600 animate-ping"></span>
+    <h3 class="f1b text-lg tracking-widest text-white uppercase">MONACO PRO TV BROADCAST STANDBY</h3>
+    <p class="text-xs text-neutral-400 max-w-xs leading-relaxed">Bu ekran delegelerin tüm yarışı ve telsiz konuşmalarını eşzamanlı izlemesi içindir.</p></div>`;
+}
+
+function syncWorkspace(){
+  if(currentRole==='chair') populateChairSelectors();
+  else if(currentRole==='director'){ const el=document.getElementById('sel-driver-txt'); if(el) el.innerText='Pilot: '+(selectedDriver||'Seçilmedi'); }
+  else if(currentRole==='steward'){
+    const pending=state.stewardIncidents.find(i=>i.status==='PENDING');
+    const div=document.getElementById('steward-active-incident');
+    if(div){
+      if(pending){
+        const voters=Object.keys(pending.votes).join(', ')||'Henüz oy yok';
+        div.innerHTML=`<span class="text-red-500 font-bold uppercase block mb-1 text-xs">SORUŞTURULAN OLAY</span>
+          <p class="text-xs font-bold text-white">${pending.driverName} - ${pending.penaltyType} Ceza Talebi</p>
+          <p class="text-[9px] text-neutral-400 mt-1.5">Oy Kullanan Hakemler: ${voters}</p>`;
+      } else {
+        div.innerHTML=`<span class="text-neutral-500 text-xs font-bold uppercase">Soruşturulan Aktif Bir Olay Bulunmuyor.</span>`;
+      }
+    }
+  } else if(currentRole==='team_principal'){ renderTPDrivers(); }
+}
+
+function showLights(){
+  state.flagStatus='STARTING';
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:'🚦 START PROSEDÜRÜ: 5 Kırmızı Işık Sistemi hazırlanıyor!'});
+  render();
+  pushState();
+  const lights=document.getElementById('start-lights');
+  lights.classList.remove('hidden'); lights.classList.add('grid');
+  for(let i=1;i<=5;i++) document.getElementById('l'+i).style.backgroundColor='#220000';
+  let count=1;
+  if(lightInterval) clearInterval(lightInterval);
+  lightInterval=setInterval(()=>{
+    if(count<=5){ document.getElementById('l'+count).style.backgroundColor='var(--f1-red)'; count++; }
+    else clearInterval(lightInterval);
+  },1000);
+}
+function extinguishLightsAndStart(){
+  clearInterval(lightInterval);
+  const lights=document.getElementById('start-lights');
+  for(let i=1;i<=5;i++) document.getElementById('l'+i).style.backgroundColor='#220000';
+  setTimeout(()=>{ lights.classList.add('hidden'); lights.classList.remove('grid'); },500);
+  state.flagStatus='GREEN';
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:'🟢 IŞIKLAR SÖNDÜ VE MONACO GRAND PRIX BAŞLADI!'});
+  render();
+  pushState();
+}
+function applyRedFlagGrid() {
+  const activeSorted = [...state.drivers]
+    .filter(d => !d.isDSQ && !d.status.startsWith('DNF') && d.status !== 'PIT')
+    .sort(raceSort);
+
+  activeSorted.forEach((d, i) => {
+    const newProgress = 0.99 - (i * 0.015);
+    const delta = newProgress - d.progress;
+    d.progress = newProgress;
+    d.totalDistance = (d.totalDistance||0) + delta;
+  });
+}
+function changeTrackFlag(f){
+  state.flagStatus=f; state.yellowSector=null;
+  if(f === 'RED') applyRedFlagGrid(); 
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`📢 Bayrak Durumu güncellendi: [${f} FLAG]`});
+  render();
+  pushState();
+}
+function triggerSectorYellow(sec){
+  state.flagStatus='YELLOW'; state.yellowSector=sec;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`📢 SEKTÖR ${sec} SARI BAYRAK: Pist üzerinde yerel tehlike!`});
+  render();
+  pushState();
+}
+
+function simulationTick(){
+  if(!isLeader) return; // Only the elected "broadcast" client drives the physics; everyone else just displays synced state.
+
+  const f=state.flagStatus;
+  if(f==='RED'||f==='STARTING') { render(); return; }
+
+  const noOvertakeZone = (f==='SC'||f==='VSC'||f==='RED');
+  const speedScale = f==='VSC'?0.35 : f==='SC'?0.45 : 1.0;
+
+  const activeCars = state.drivers.filter(d => !d.isDSQ && !d.status.startsWith('DNF') && d.status !== 'PIT');
+
+  state.drivers.forEach(d => {
+    if (d.status.startsWith('DNF') && !d.hidden) {
+      if (!d.passedBy) {
+        d.passedBy = new Set();
+        activeCars.forEach(a => { if (a.progress > d.progress) d.passedBy.add(a.abbr); });
+      }
+      
+      activeCars.forEach(a => {
+        if ((a._lastProgress <= d.progress && a.progress >= d.progress) || (a.progress < a._lastProgress)) {
+          d.passedBy.add(a.abbr);
+        }
+      });
+
+      if (d.passedBy.size >= activeCars.length && !d.hideTimerStarted && activeCars.length > 0) {
+        d.hideTimerStarted = true;
+        setTimeout(() => {
+          d.hidden = true; 
+          render();
+          pushState();
+        }, 1000);
+      }
+    }
+  });
+
+  state.drivers.forEach(d=>{
+    if(d.isDSQ || d.status.startsWith('DNF') || d.status==='PIT') return;
+
+    d.tyreWear = Math.min(100, (d.tyreWear||0) + 0.35);
+
+    let localScale = speedScale;
+    if(f==='YELLOW' && state.yellowSector){
+      const carSector = Math.floor(d.progress*3)+1;
+      if(carSector === state.yellowSector) localScale = 0.3;
+    }
+
+    const curve = curvatureAt(d.progress);              
+    const jitter = noOvertakeZone ? 1 : (0.9 + Math.random()*0.2); 
+    const increment = UNIT * curve * d.skill * jitter * localScale;
+
+    d.progress += increment;
+    d.totalDistance = (d.totalDistance||0) + increment;
+    if(d.progress >= 1){ d.progress -= 1; }
+  });
+
+  const leader = [...state.drivers].filter(d=>!d.isDSQ && !d.status.startsWith('DNF')).sort(raceSort)[0];
+  if(leader && leader._lastProgress !== undefined && leader.progress < leader._lastProgress - 0.5){
+    state.lap += 1;
+    if(state.lap > state.maxLaps){
+      state.flagStatus='RED';
+      state.logs.push({time:getTimestamp(),sender:'SISTEM',message:'🏁 DAMALI BAYRAK! Monaco GP MUN Yarış Simülasyonu tamamlandı!'});
+    }
+  }
+  state.drivers.forEach(d=>{ d._lastProgress = d.progress; });
+
+  render();
+}
+function leaderAbbr(){
+  const l=[...state.drivers].filter(d=>!d.isDSQ && !d.status.startsWith('DNF')).sort(raceSort)[0];
+  return l?l.abbr:null;
+}
+
+function startEngine(){
+  if(tickInterval) clearInterval(tickInterval);
+  tickInterval = setInterval(simulationTick, TICK_MS);
+}
+function stopEngine(){
+  if(tickInterval) clearInterval(tickInterval);
+  tickInterval = null;
+}
+
+function showModal(title,text,borderClass='border-yellow-500',titleClass='text-yellow-500'){
+  const modal=document.getElementById('custom-modal');
+  const mTitle=document.getElementById('modal-title');
+  const mBody=document.getElementById('modal-body');
+  modal.classList.remove('hidden');
+  mTitle.innerText=title; mTitle.className=`f1b text-lg tracking-widest uppercase block mb-3 ${titleClass}`;
+  modal.firstElementChild.className=`max-w-md w-full bg-neutral-950 border-2 rounded-lg p-6 text-center shadow-2xl relative ${borderClass}`;
+  mBody.innerHTML=text.replace(/\n/g,'<br>');
+}
+function closeModal(){ document.getElementById('custom-modal').classList.add('hidden'); }
+function getTimestamp(){ return new Date().toTimeString().split(' ')[0]; }
+
+// ================= MULTI-SCREEN SYNC =================
+// All connected screens (Chair, Race Director, Stewards, Team Principals, TV)
+// share ONE race state through the artifact's shared storage. One client is
+// elected "leader" (heartbeat-based) and is the only one running the physics
+// tick; every client (leader included) pushes its own actions immediately so
+// the whole committee sees them within roughly half a second.
+const CLIENT_ID = 'c_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+const STATE_KEY = 'f1mun_monaco_race_state';
+const LEADER_KEY = 'f1mun_monaco_leader_heartbeat';
+const SYNC_MS = 600;
+const LEADER_TIMEOUT_MS = 2500;
+let isLeader = false;
+
+async function pushState(){
+  try{
+    state._v = (state._v||0) + 1;
+    state._by = CLIENT_ID;
+    state._t = Date.now();
+    await window.storage.set(STATE_KEY, JSON.stringify(state), true);
+  }catch(e){ console.error('pushState hata:', e); }
+}
+
+async function pullState(){
+  try{
+    const res = await window.storage.get(STATE_KEY, true);
+    if(res && res.value){
+      const remote = JSON.parse(res.value);
+      if(!state || (remote._v||0) > (state._v||0)){
+        state = remote;
+        render();
+      }
+    }
+  }catch(e){ /* henüz paylaşılan bir durum yok, ilk açılışta normaldir */ }
+}
+
+async function heartbeat(){
+  try{
+    let leaderInfo = null;
+    try{
+      const res = await window.storage.get(LEADER_KEY, true);
+      if(res && res.value) leaderInfo = JSON.parse(res.value);
+    }catch(e){ leaderInfo = null; }
+
+    const now = Date.now();
+    const stale = !leaderInfo || (now - leaderInfo.ts > LEADER_TIMEOUT_MS);
+
+    if(stale){
+      leaderInfo = {clientId: CLIENT_ID, ts: now};
+      await window.storage.set(LEADER_KEY, JSON.stringify(leaderInfo), true);
+    } else if(leaderInfo.clientId === CLIENT_ID){
+      leaderInfo.ts = now;
+      await window.storage.set(LEADER_KEY, JSON.stringify(leaderInfo), true);
+    }
+
+    const wasLeader = isLeader;
+    isLeader = leaderInfo.clientId === CLIENT_ID;
+
+    if(isLeader && !wasLeader){
+      await pullState(); // don't discard actions others made while there was no leader
+      startEngine();
+    } else if(!isLeader && wasLeader){
+      stopEngine();
+    }
+
+    if(isLeader){
+      await pushState();
+    } else {
+      await pullState();
+    }
+    updateSyncBadge();
+  }catch(e){ console.error('heartbeat hata:', e); }
+}
+
+window.onload = async function(){
+  overlay = document.getElementById('sector-overlay');
+  pathLen = overlay.getTotalLength();
+  initCars();
+  await pullState();
+  render();
+  await heartbeat();
+  setInterval(heartbeat, SYNC_MS);
+};
+</script>
+</body>
+</html>
