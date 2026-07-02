@@ -126,8 +126,8 @@ select, input, button { font-family: 'Rajdhani', sans-serif; }
       <span class="text-xs text-neutral-500 font-bold uppercase tracking-wider block mb-2">Sisteme Tanımlı Tüm Yetki Kodları:</span>
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-[11px] text-neutral-400">
         <div class="border-b border-neutral-800/40 pb-1 col-span-full font-bold text-neutral-500 uppercase">ÖZEL YÖNETİCİLER:</div>
-        <div>🔴 Yarış Dir: <code class="bg-black px-1 py-0.5 rounded text-red-400 font-mono">RACE-DIR</code></div>
-        <div>👑 USG/Chair: <code class="bg-black px-1 py-0.5 rounded text-yellow-400 font-mono">CHAIR</code></div>
+        <div>🔴 Yarış Dir: <code class="bg-black px-1 py-0.5 rounded text-red-400 font-mono">RUI-RD</code></div>
+        <div>👑 USG/Chair: <code class="bg-black px-1 py-0.5 rounded text-yellow-400 font-mono">CHAIR-GOD</code></div>
         <div>📺 Canlı Yayın: <code class="bg-black px-1 py-0.5 rounded text-sky-400 font-mono">PRO-TV</code></div>
         <div class="border-b border-neutral-800/40 pt-1 pb-1 col-span-full font-bold text-neutral-500 uppercase">TAKIM PATRONLARI:</div>
         <div>🏎️ Ferrari: <code class="bg-black px-1 rounded text-red-500 font-mono">FER-TP</code></div>
@@ -362,6 +362,11 @@ function render(){
 function updateSyncBadge(){
   const el=document.getElementById('sync-status');
   if(!el) return;
+  if(typeof syncDisabled !== 'undefined' && syncDisabled){
+    el.innerText = '⚠️ YEREL MOD (paylaşım yok)';
+    el.className = 'text-[10px] font-bold uppercase tracking-wider text-amber-500';
+    return;
+  }
   const role = isLeader ? 'YAYIN KAYNAĞI' : 'İZLEYİCİ';
   el.innerText = `🔗 SENKRON (${role})`;
   el.className = 'text-[10px] font-bold uppercase tracking-wider ' + (isLeader ? 'text-emerald-500' : 'text-sky-400');
@@ -514,8 +519,8 @@ function initCars(){
 // ================= LOGIN =================
 function handleLogin(){
   const v=document.getElementById('access-code-input').value.trim().toUpperCase();
-  if(v==='RACE-DIR'){currentRole='director';currentSubRole='Rui Marques';}
-  else if(v==='CHAIR'){currentRole='chair';currentSubRole='Chair/USG';}
+  if(v==='RUI-RD'){currentRole='director';currentSubRole='Rui Marques';}
+  else if(v==='CHAIR-GOD'){currentRole='chair';currentSubRole='Chair/USG';}
   else if(v==='PRO-TV'){currentRole='tv';currentSubRole='Canlı Yayın';}
   else if(STEWARDS[v.replace('STW-','')]){currentRole='steward';currentSubRole=STEWARDS[v.replace('STW-','')];}
   else if(TEAMS[v.replace('-TP','')]){currentRole='team_principal';currentSubRole=v.replace('-TP','');}
@@ -1015,17 +1020,28 @@ function getTimestamp(){ return new Date().toTimeString().split(' ')[0]; }
 // ================= MULTI-SCREEN SYNC =================
 // All connected screens (Chair, Race Director, Stewards, Team Principals, TV)
 // share ONE race state through the artifact's shared storage. One client is
-// elected "leader" (heartbeat-based) and is the only one running the physics
-// tick; every client (leader included) pushes its own actions immediately so
-// the whole committee sees them within roughly half a second.
+// elected "leader" (heartbeat-based, with a short settle window to resolve
+// simultaneous claims) and is the only one running the physics tick; every
+// client (leader included) pushes its own actions immediately, and the
+// leader always pulls before it pushes so it never overwrites an action a
+// different client just made. The race always starts locally right away —
+// sync only upgrades/demotes from there — so a slow or unavailable network
+// never blocks the simulation from running.
 const CLIENT_ID = 'c_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36);
 const STATE_KEY = 'f1mun_monaco_race_state';
 const LEADER_KEY = 'f1mun_monaco_leader_heartbeat';
-const SYNC_MS = 600;
+const SYNC_MS = 700;
 const LEADER_TIMEOUT_MS = 2500;
-let isLeader = false;
+const LEADER_SETTLE_MS = 220;
+let isLeader = true;      // optimistic default: race runs locally immediately
+let syncDisabled = false; // becomes true if shared storage isn't reachable
+
+function storageAvailable(){
+  return typeof window !== 'undefined' && window.storage && typeof window.storage.get === 'function' && typeof window.storage.set === 'function';
+}
 
 async function pushState(){
+  if(syncDisabled) return;
   try{
     state._v = (state._v||0) + 1;
     state._by = CLIENT_ID;
@@ -1035,11 +1051,12 @@ async function pushState(){
 }
 
 async function pullState(){
+  if(syncDisabled) return;
   try{
     const res = await window.storage.get(STATE_KEY, true);
     if(res && res.value){
       const remote = JSON.parse(res.value);
-      if(!state || (remote._v||0) > (state._v||0)){
+      if((remote._v||0) > (state._v||0)){
         state = remote;
         render();
       }
@@ -1047,7 +1064,21 @@ async function pullState(){
   }catch(e){ /* henüz paylaşılan bir durum yok, ilk açılışta normaldir */ }
 }
 
+async function claimLeadership(){
+  const now = Date.now();
+  await window.storage.set(LEADER_KEY, JSON.stringify({clientId: CLIENT_ID, ts: now}), true);
+  // Kısa bir bekleme: aynı anda başka bir sekme de liderliği talep ettiyse,
+  // son yazan (storage'da kalan) kazanır ve biz takipçiye döneriz.
+  await new Promise(r=>setTimeout(r, LEADER_SETTLE_MS));
+  try{
+    const check = await window.storage.get(LEADER_KEY, true);
+    const info = check && check.value ? JSON.parse(check.value) : null;
+    return !!(info && info.clientId === CLIENT_ID);
+  }catch(e){ return false; }
+}
+
 async function heartbeat(){
+  if(syncDisabled) return;
   try{
     let leaderInfo = null;
     try{
@@ -1057,30 +1088,24 @@ async function heartbeat(){
 
     const now = Date.now();
     const stale = !leaderInfo || (now - leaderInfo.ts > LEADER_TIMEOUT_MS);
-
-    if(stale){
-      leaderInfo = {clientId: CLIENT_ID, ts: now};
-      await window.storage.set(LEADER_KEY, JSON.stringify(leaderInfo), true);
-    } else if(leaderInfo.clientId === CLIENT_ID){
-      leaderInfo.ts = now;
-      await window.storage.set(LEADER_KEY, JSON.stringify(leaderInfo), true);
-    }
-
     const wasLeader = isLeader;
-    isLeader = leaderInfo.clientId === CLIENT_ID;
+    let nowLeader;
 
-    if(isLeader && !wasLeader){
-      await pullState(); // don't discard actions others made while there was no leader
-      startEngine();
-    } else if(!isLeader && wasLeader){
-      stopEngine();
-    }
-
-    if(isLeader){
-      await pushState();
+    if(stale || leaderInfo.clientId === CLIENT_ID){
+      nowLeader = await claimLeadership();
     } else {
-      await pullState();
+      nowLeader = false;
     }
+    isLeader = nowLeader;
+
+    // Lider dahil HERKES önce ortak durumu çeker (başka istemcilerin az önceki
+    // aksiyonlarını kaybetmemek için), sonra lider kendi güncel halini yazar.
+    await pullState();
+    if(isLeader) await pushState();
+
+    if(isLeader && !wasLeader) startEngine();
+    else if(!isLeader && wasLeader) stopEngine();
+
     updateSyncBadge();
   }catch(e){ console.error('heartbeat hata:', e); }
 }
@@ -1089,6 +1114,18 @@ window.onload = async function(){
   overlay = document.getElementById('sector-overlay');
   pathLen = overlay.getTotalLength();
   initCars();
+
+  // Yarış, ağ/senkron durumu ne olursa olsun HEMEN yerel olarak başlar.
+  startEngine();
+  render();
+
+  if(!storageAvailable()){
+    syncDisabled = true;
+    isLeader = true;
+    updateSyncBadge();
+    return;
+  }
+
   await pullState();
   render();
   await heartbeat();
