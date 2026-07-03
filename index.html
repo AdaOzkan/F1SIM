@@ -299,16 +299,26 @@ const TEAMS = {
 const STEWARDS = {GARRY:'Garry Connelly',DEREK:'Derek Warwick',JOSE:'José Abed',SILVIA:'Silvia Bellot'};
 
 // ================= STATE =================
-const LAP_SECONDS = 60;        
-const TICK_MS = 100;          
+const LAP_SECONDS = 72;        
+const TICK_MS = 150;          
 const TICKS_PER_LAP = LAP_SECONDS * 1000 / TICK_MS; 
 const UNIT = 1 / TICKS_PER_LAP;
 const PIT_STOP_MIN_MS = 19000;
 const PIT_STOP_MAX_MS = 20000;
 
+// Grid pozisyonlarını, başlangıç/bitiş çizgisinin HEMEN ÖNÜNDE değil,
+// HEMEN ARDINDA konumlandırır. Böylece yarış başladığında pilotlar tam bir
+// tur kat etmek zorunda kalır; aksi halde bitiş çizgisine çok yakın
+// başladıklarında tur sayacı yarış başlar başlamaz yanlışlıkla artıyordu.
+function gridStartProgress(i, total){
+  const spread = 0.05; // ızgaradaki tüm araçları ilk %5'lik dilime sıkıştır
+  const denom = Math.max(1, total - 1);
+  return 0.01 + ((total - 1 - i) / denom) * spread;
+}
+
 function freshDrivers(){
   return drivers.map((d,i)=>{
-    const startProgress = 0.95 - i*0.02;
+    const startProgress = gridStartProgress(i, drivers.length);
     return {...d, progress: startProgress, totalDistance: startProgress, tyreWear: Math.random()*5, status:'OK', isDSQ:false, penalty:null, hidden:false};
   });
 }
@@ -569,7 +579,19 @@ function renderChairWorkspace(container){
     <div class="flex flex-col h-full space-y-3 overflow-y-auto">
       <div class="flex justify-between items-center border-b border-neutral-800 pb-2">
         <h3 class="f1b text-sm tracking-widest text-yellow-500 uppercase">CHAIR / USG KONTROL PANELİ</h3>
-        <button onclick="resetSimulation()" class="bg-red-600/10 hover:bg-red-600 hover:text-white border border-red-600/30 text-red-500 text-[10px] px-2 py-0.5 rounded font-bold">RESET</button>
+      </div>
+
+      <div class="border border-yellow-600/30 p-2.5 rounded bg-yellow-950/10 space-y-2">
+        <span class="text-[10px] text-yellow-500 font-bold uppercase tracking-wider block">🏁 YARIŞ AYARLARI</span>
+        <div class="flex items-center space-x-2">
+          <label class="text-[10px] text-neutral-400 font-bold uppercase whitespace-nowrap">Toplam Tur Sayısı:</label>
+          <input type="number" id="chair-lap-count-input" min="1" max="200" step="1" value="${state.maxLaps}" class="flex-1 bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px] text-center font-bold">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="applyLapCountOnly()" class="bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-1.5 rounded text-[10px] uppercase tracking-wider">SADECE TUR SAYISINI GÜNCELLE</button>
+          <button onclick="resetSimulation()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-1.5 rounded text-[10px] uppercase tracking-wider">🔄 YARIŞI SIFIRDAN BAŞLAT</button>
+        </div>
+        <p class="text-[9px] text-neutral-600 leading-snug">"Sadece tur sayısını güncelle": yarışı etkilemeden hedef tur sayısını değiştirir. "Yarışı sıfırdan başlat": tüm pilotları başlangıç ızgarasına döndürür, tur sayacını 1'e çeker ve yarışı yukarıda girdiğiniz tur sayısıyla yeniden başlatır.</p>
       </div>
 
       <div class="grid grid-cols-2 gap-2">
@@ -613,15 +635,36 @@ function renderChairWorkspace(container){
   populateChairSelectors();
 }
 
+let _lastDriverOptionsSignature = null;
+
 function populateChairSelectors(){
   const front=document.getElementById('chair-overtake-front');
   const back=document.getElementById('chair-overtake-back');
   const crash=document.getElementById('chair-crash-driver');
   const opts = activeDriverOptions();
-  if(front) front.innerHTML = opts;
-  if(back) back.innerHTML = opts;
-  if(crash) crash.innerHTML = opts;
+
+  // Yarış her tick'te (150ms) render edildiği için bu listeleri her seferinde
+  // yeniden oluşturmak, kullanıcının az önce seçtiği aracı sürekli ilk sıraya
+  // resetliyordu. Artık: (1) liste gerçekten değişmediyse DOM'a hiç dokunmuyoruz,
+  // (2) değiştiyse bile kullanıcının önceki seçimini, hâlâ geçerliyse geri
+  // yüklüyoruz, böylece seçim kalıcı oluyor.
+  if(opts !== _lastDriverOptionsSignature){
+    _lastDriverOptionsSignature = opts;
+    [front, back, crash].forEach(sel=>{
+      if(!sel) return;
+      const prevValue = sel.value;
+      sel.innerHTML = opts;
+      if(prevValue && sel.querySelector(`option[value="${prevValue}"]`)){
+        sel.value = prevValue;
+      }
+    });
+  }
+
   renderChairOrderList();
+  const lapInput=document.getElementById('chair-lap-count-input');
+  if(lapInput && document.activeElement !== lapInput){
+    lapInput.value = state.maxLaps;
+  }
 }
 
 function renderChairOrderList(){
@@ -706,17 +749,37 @@ function chairTriggerCrash(){
   pushState();
 }
 
+function getChosenLapCount(fallback){
+  const input = document.getElementById('chair-lap-count-input');
+  if(!input) return fallback;
+  const val = parseInt(input.value, 10);
+  if(!Number.isFinite(val) || val < 1 || val > 200) return null;
+  return val;
+}
+
+function applyLapCountOnly(){
+  const val = getChosenLapCount(null);
+  if(val === null){ showModal('GEÇERSİZ DEĞER','Lütfen 1 ile 200 arasında geçerli bir tur sayısı girin.','border-red-600','text-red-500'); return; }
+  state.maxLaps = val;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`👑 CHAIR: Toplam tur sayısı ${val} olarak güncellendi.`});
+  render();
+  pushState();
+}
+
 function resetSimulation(){
+  const chosen = getChosenLapCount(78);
+  if(chosen === null){ showModal('GEÇERSİZ DEĞER','Lütfen 1 ile 200 arasında geçerli bir tur sayısı girin.','border-red-600','text-red-500'); return; }
+  const laps = chosen;
   state = {
-    lap:1, maxLaps:78, flagStatus:'NORMAL', yellowSector:null,
+    lap:1, maxLaps: laps, flagStatus:'NORMAL', yellowSector:null,
     drivers: freshDrivers(),
-    logs:[{time:getTimestamp(),sender:'SISTEM',message:'Simülasyon sıfırlandı.'}],
+    logs:[{time:getTimestamp(),sender:'SISTEM',message:`Simülasyon sıfırlandı. Yarış ${laps} tur olarak ayarlandı, tüm pilotlar başlangıç ızgarasına döndü.`}],
     stewardIncidents:[],
     _v: (state._v||0) + 1
   };
   render();
   pushState();
-  showModal('YARIŞ SIFIRLANDI','Simülasyon durumları ve tüm 20 pilot kaydı tamamen sıfırlanmıştır.','border-red-600','text-red-500');
+  showModal('YARIŞ SIFIRLANDI', `Simülasyon durumları ve tüm 20 pilot kaydı tamamen sıfırlanmıştır.\nToplam Tur: ${laps}`, 'border-red-600','text-red-500');
 }
 
 function renderDirectorWorkspace(container){
@@ -805,16 +868,24 @@ function renderTPDrivers(){
   const container=document.getElementById('tp-drivers-container');
   if(!container) return;
   const teamDrivers=state.drivers.filter(d=>d.team===currentSubRole);
+  // Rebuild edilmeden önce, her sürücü için o an seçili lastik tercihini
+  // hatırla, ki her render'da (150ms'de bir) seçim sıfırlanmasın.
+  const preservedTireChoice = {};
+  teamDrivers.forEach(d=>{
+    const existing = document.getElementById(`tire-choice-${d.abbr}`);
+    if(existing) preservedTireChoice[d.abbr] = existing.value;
+  });
   container.innerHTML='';
   teamDrivers.forEach(d=>{
     const div=document.createElement('div');
     div.className='flex items-center justify-between border-b border-neutral-900 pb-3 last:border-b-0 text-xs';
     const pitLabel = d.status==='PIT' ? '<span class="text-sky-400 font-bold animate-pulse ml-1">(PİT BOKSUNDA - LASTİK DEĞİŞİYOR)</span>' : '';
+    const chosen = preservedTireChoice[d.abbr] || 'S';
     div.innerHTML=`<div><span class="font-bold text-white block">${d.fname} ${d.lname} (${d.abbr})</span>
       <span class="text-[10px] text-neutral-400">Lastik: <span class="font-bold">${d.tire}</span> (Aşınma %${Math.floor(d.tyreWear||0)}) - Durum: ${d.status}</span>${pitLabel}</div>
       <div class="flex space-x-1.5">
         <select id="tire-choice-${d.abbr}" class="bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]" ${d.status==='PIT'?'disabled':''}>
-          <option value="S">Soft (S)</option><option value="M">Medium (M)</option><option value="H">Hard (H)</option>
+          <option value="S" ${chosen==='S'?'selected':''}>Soft (S)</option><option value="M" ${chosen==='M'?'selected':''}>Medium (M)</option><option value="H" ${chosen==='H'?'selected':''}>Hard (H)</option>
         </select>
         <button onclick="triggerTPPitstop('${d.abbr}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1 rounded text-[10px] uppercase" ${d.status==='PIT'?'disabled':''}>BOX</button>
       </div>`;
