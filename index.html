@@ -5,11 +5,44 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Rayfelmun'26 FIA Control Panel</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<!-- Firebase Realtime Database - GitHub Pages'te ekranlar arası canlı senkronizasyon için -->
+<!-- Firebase Realtime Database - used for live sync between screens on GitHub Pages -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap');
+
+/*
+  CUSTOM FONTS
+  Place the three font files in a "fonts" folder next to this HTML file
+  (or update the url() paths below to wherever you host them):
+    fonts/KHInterferenceTRIAL-Regular.otf
+    fonts/Formula1-Bold_web.ttf
+    fonts/Formula1-Regular-1.ttf
+*/
+@font-face {
+  font-family: 'KHInterference';
+  src: url('./fonts/KHInterferenceTRIAL-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'F1Bold';
+  src: url('./fonts/Formula1-Bold_web.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'F1Regular';
+  src: url('./fonts/Formula1-Regular-1.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+.pos-font { font-family: 'KHInterference', 'Orbitron', sans-serif; }
+.driver-font { font-family: 'F1Bold', 'Rajdhani', sans-serif; }
+.tel-font { font-family: 'F1Regular', 'Rajdhani', sans-serif; }
 
 :root {
   --f1-red: #ff0000; 
@@ -76,38 +109,78 @@ body, html {
 }
 .pit-frozen { animation: pitFrozen 0.9s infinite; }
 
+@keyframes fastestLapGlow {
+  0%, 100% { box-shadow: 0 0 4px #b026ff; }
+  50% { box-shadow: 0 0 9px #d68bff; }
+}
+
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: #09090b; }
 ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--f1-red); }
 select, input, button { font-family: 'Rajdhani', sans-serif; }
 
+/* Tire compound letter — no circle/border, just the compound color */
 .f1-tire {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background-color: #121212;
-    font-family: 'Arial Black', sans-serif;
-    font-size: 11px;
+    width: 20px;
+    height: 20px;
+    font-family: 'F1Regular', 'Rajdhani', sans-serif;
+    font-size: 13px;
     font-weight: 900;
-    color: #ffffff;
     box-sizing: border-box;
     user-select: none;
 }
+.f1-tire.soft { color: #ff2b2b; }
+.f1-tire.medium { color: #ffd100; }
+.f1-tire.hard { color: #ffffff; }
 
-.f1-tire.soft {
-    border: 3px double #e10600;
+/* Pit indicator badge (green "P") */
+.pit-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  background: #00d21d;
+  color: #000;
+  font-family: 'F1Bold', 'Rajdhani', sans-serif;
+  font-weight: 900;
+  font-size: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
 }
 
-.f1-tire.medium {
-    border: 3px double #ffd100;
+/* Fastest-lap badge (purple stopwatch) */
+.fastest-lap-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #b026ff;
+  color: #fff;
+  font-size: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  animation: fastestLapGlow 1.2s infinite;
 }
 
-.f1-tire.hard {
-    border: 3px double #ffffff;
+/* Checkered flag badge shown once the race has finished */
+.checkered-badge {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000),
+    linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000);
+  background-size: 7.5px 7.5px;
+  background-position: 0 0, 3.75px 3.75px;
 }
 </style>
 </head>
@@ -118,32 +191,32 @@ select, input, button { font-family: 'Rajdhani', sans-serif; }
     <div class="flex justify-center mb-4">
       <div class="f1b text-4xl text-white tracking-widest italic flex items-center">F1<span class="text-red-600">MUN</span><span class="text-xs bg-red-600 text-white px-2 py-0.5 ml-2 rounded not-italic tracking-normal">MONACO GP</span></div>
     </div>
-    <h2 class="text-xl font-bold tracking-wider text-white mb-1 uppercase">KOMİTE SİMÜLASYONU - GÜVENLİ ERİŞİM PANELİ</h2>
-    <p class="text-neutral-400 text-sm mb-1">Lütfen atanan yetki erişim kodunu kullanarak pit duvarına bağlanın.</p>
-    <p class="text-neutral-600 text-[11px] mb-6">Tüm katılımcıların ekranları aynı yarışı gerçek zamanlıya yakın şekilde senkronize gösterir.</p>
+    <h2 class="text-xl font-bold tracking-wider text-white mb-1 uppercase">COMMITTEE SIMULATION - SECURE ACCESS PANEL</h2>
+    <p class="text-neutral-400 text-sm mb-1">Please connect to the pit wall using your assigned access code.</p>
+    <p class="text-neutral-600 text-[11px] mb-6">All participants' screens display the same race synchronized in near real-time.</p>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-      <input type="password" id="access-code-input" placeholder="ERİŞİM KODU" class="md:col-span-2 bg-black border border-neutral-700 text-white text-center py-3 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-600 text-lg tracking-widest uppercase font-mono">
-      <button onclick="handleLogin()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded transition-all duration-300 tracking-wider text-xs uppercase">SİSTEME BAĞLAN</button>
+      <input type="password" id="access-code-input" placeholder="ACCESS CODE" class="md:col-span-2 bg-black border border-neutral-700 text-white text-center py-3 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-600 text-lg tracking-widest uppercase font-mono">
+      <button onclick="handleLogin()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded transition-all duration-300 tracking-wider text-xs uppercase">CONNECT TO SYSTEM</button>
     </div>
     <div class="mt-4 pt-4 border-t border-neutral-800 text-left max-h-[220px] overflow-y-auto pr-1">
-      <span class="text-xs text-neutral-500 font-bold uppercase tracking-wider block mb-2">Sisteme Tanımlı Tüm Yetki Kodları:</span>
+      <span class="text-xs text-neutral-500 font-bold uppercase tracking-wider block mb-2">All Access Codes Defined in the System:</span>
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-[11px] text-neutral-400">
-        <div class="border-b border-neutral-800/40 pb-1 col-span-full font-bold text-neutral-500 uppercase">ÖZEL YÖNETİCİLER:</div>
+        <div class="border-b border-neutral-800/40 pb-1 col-span-full font-bold text-neutral-500 uppercase">SPECIAL ADMINISTRATORS:</div>
         <div>🔴 Race Director: <code class="bg-black px-1 py-0.5 rounded text-red-400 font-mono">RUI-RD</code></div>
         <div>👑 USG/Chair: <code class="bg-black px-1 py-0.5 rounded text-yellow-400 font-mono">CHAIR</code></div>
         <div>📺 LIVE: <code class="bg-black px-1 py-0.5 rounded text-sky-400 font-mono">PRO-TV</code></div>
-        <div class="border-b border-neutral-800/40 pt-1 pb-1 col-span-full font-bold text-neutral-500 uppercase">TAKIM PATRONLARI:</div>
-        <div>🏎️ Ferrari Princple: <code class="bg-black px-1 rounded text-red-500 font-mono">FER-TP</code></div>
-        <div>🏎️ Red Bull Princple: <code class="bg-black px-1 rounded text-blue-400 font-mono">RBR-TP</code></div>
-        <div>🏎️ Mercedes Princple: <code class="bg-black px-1 rounded text-teal-400 font-mono">MER-TP</code></div>
-        <div>🏎️ McLaren Princple: <code class="bg-black px-1 rounded text-orange-400 font-mono">MCL-TP</code></div>
-        <div>🏎️ Aston Martin Princple: <code class="bg-black px-1 rounded text-emerald-500 font-mono">AMR-TP</code></div>
-        <div>🏎️ Williams Princple: <code class="bg-black px-1 rounded text-blue-300 font-mono">WIL-TP</code></div>
-        <div>🏎️ Alpine Princple: <code class="bg-black px-1 rounded text-sky-500 font-mono">ALP-TP</code></div>
-        <div>🏎️ VCARB Princple: <code class="bg-black px-1 rounded text-indigo-400 font-mono">VCARB-TP</code></div>
-        <div>🏎️ Audi Sauber Princple: <code class="bg-black px-1 rounded text-green-400 font-mono">KOP-TP</code></div>
-        <div>🏎️ Haas Princple: <code class="bg-black px-1 rounded text-gray-400 font-mono">HAS-TP</code></div>
-        <div class="border-b border-neutral-800/40 pt-1 pb-1 col-span-full font-bold text-neutral-500 uppercase">HAKEMLER:</div>
+        <div class="border-b border-neutral-800/40 pt-1 pb-1 col-span-full font-bold text-neutral-500 uppercase">TEAM PRINCIPALS:</div>
+        <div>🏎️ Ferrari Principal: <code class="bg-black px-1 rounded text-red-500 font-mono">FER-TP</code></div>
+        <div>🏎️ Red Bull Principal: <code class="bg-black px-1 rounded text-blue-400 font-mono">RBR-TP</code></div>
+        <div>🏎️ Mercedes Principal: <code class="bg-black px-1 rounded text-teal-400 font-mono">MER-TP</code></div>
+        <div>🏎️ McLaren Principal: <code class="bg-black px-1 rounded text-orange-400 font-mono">MCL-TP</code></div>
+        <div>🏎️ Aston Martin Principal: <code class="bg-black px-1 rounded text-emerald-500 font-mono">AMR-TP</code></div>
+        <div>🏎️ Williams Principal: <code class="bg-black px-1 rounded text-blue-300 font-mono">WIL-TP</code></div>
+        <div>🏎️ Alpine Principal: <code class="bg-black px-1 rounded text-sky-500 font-mono">ALP-TP</code></div>
+        <div>🏎️ VCARB Principal: <code class="bg-black px-1 rounded text-indigo-400 font-mono">VCARB-TP</code></div>
+        <div>🏎️ Audi Sauber Principal: <code class="bg-black px-1 rounded text-green-400 font-mono">KOP-TP</code></div>
+        <div>🏎️ Haas Principal: <code class="bg-black px-1 rounded text-gray-400 font-mono">HAS-TP</code></div>
+        <div class="border-b border-neutral-800/40 pt-1 pb-1 col-span-full font-bold text-neutral-500 uppercase">STEWARDS:</div>
         <div>⚖️ Steward G. Connelly: <code class="bg-black px-1 rounded font-mono">STW-GARRY</code></div>
         <div>⚖️ Steward D. Warwick: <code class="bg-black px-1 rounded font-mono">STW-DEREK</code></div>
         <div>⚖️ Steward J. Abed: <code class="bg-black px-1 rounded font-mono">STW-JOSE</code></div>
@@ -157,19 +230,19 @@ select, input, button { font-family: 'Rajdhani', sans-serif; }
   <div class="flex items-center space-x-4">
     <span class="f1b text-2xl tracking-widest text-white italic">F1<span class="text-red-600">MUN</span></span>
     <div class="h-6 w-[1px] bg-neutral-800"></div>
-    <div id="role-badge" class="bg-red-600/10 border border-red-600/30 text-red-500 text-xs px-3 py-1 rounded font-bold uppercase tracking-wider">Yükleniyor...</div>
+    <div id="role-badge" class="bg-red-600/10 border border-red-600/30 text-red-500 text-xs px-3 py-1 rounded font-bold uppercase tracking-wider">Loading...</div>
   </div>
   <div class="flex items-center space-x-6 my-2 md:my-0">
     <div class="flex items-center space-x-2">
-      <span class="text-neutral-500 text-xs font-bold uppercase">TUR:</span>
-      <span id="lap-counter" class="f1b text-white text-lg">0 / 78</span>
+      <span class="text-neutral-500 text-xs font-bold uppercase">LAP:</span>
+      <span id="lap-counter" class="f1b text-white text-lg tel-font">0 / 78</span>
     </div>
     <div class="h-6 w-[1px] bg-neutral-800"></div>
     <div id="status-flag-pill" class="px-4 py-1 rounded font-bold tracking-widest text-xs uppercase transition-all duration-300 bg-emerald-600 text-white">GREEN FLAG</div>
     <div class="h-6 w-[1px] bg-neutral-800"></div>
-    <div id="sync-status" class="text-[10px] font-bold uppercase tracking-wider text-neutral-500">SENKRONİZE EDİLİYOR...</div>
+    <div id="sync-status" class="text-[10px] font-bold uppercase tracking-wider text-neutral-500">SYNCHRONIZING...</div>
   </div>
-  <button onclick="logout()" class="text-neutral-400 hover:text-red-500 text-xs font-bold uppercase tracking-wider transition-colors">GÜVENLİ ÇIKIŞ</button>
+  <button onclick="logout()" class="text-neutral-400 hover:text-red-500 text-xs font-bold uppercase tracking-wider transition-colors">SECURE LOGOUT</button>
 </header>
 
 <main class="flex-1 grid grid-cols-1 xl:grid-cols-12 overflow-hidden h-full">
@@ -205,7 +278,7 @@ select, input, button { font-family: 'Rajdhani', sans-serif; }
         <div class="flex items-center space-x-4">
           <div class="bg-red-600/15 p-2 rounded"><span class="text-red-500 font-black text-3xl">⚠️</span></div>
           <div>
-            <span class="text-red-600 f1b text-xs tracking-widest block" id="po-title">OLAY</span>
+            <span class="text-red-600 f1b text-xs tracking-widest block" id="po-title">INCIDENT</span>
             <div class="flex items-baseline space-x-1">
               <span class="text-white text-lg" id="po-name">-</span>
             </div>
@@ -218,14 +291,14 @@ select, input, button { font-family: 'Rajdhani', sans-serif; }
   <div class="xl:col-span-5 flex flex-col h-full bg-neutral-900/40 overflow-y-auto p-4 space-y-4">
     <div class="bg-black/85 border border-neutral-900 rounded p-4">
       <div class="flex justify-between items-center mb-2">
-        <span class="f1b text-xs tracking-widest text-neutral-400 uppercase">CANLI TELEMETRİ (20 PİLOT)</span>
+        <span class="f1b text-xs tracking-widest text-neutral-400 uppercase">LIVE TELEMETRY (20 DRIVERS)</span>
         <span class="text-[9px] bg-red-600/10 border border-red-600/30 text-red-500 px-2 py-0.5 rounded font-bold uppercase">LIVE</span>
       </div>
       <div class="overflow-x-auto max-h-[190px]">
         <table class="w-full text-left border-collapse">
           <thead>
             <tr class="border-b border-neutral-800 text-[10px] text-neutral-500 uppercase font-bold tracking-wider">
-              <th class="pb-1">POS</th><th class="pb-1">PİLOT</th><th class="pb-1 text-center">LASTİK</th><th class="pb-1 text-right">FARK</th><th class="pb-1 text-right">AŞINMA</th><th class="pb-1 text-right">DURUM</th>
+              <th class="pb-1">POS</th><th class="pb-1">DRIVER</th><th class="pb-1 text-center">TIRE</th><th class="pb-1 text-right">GAP</th><th class="pb-1 text-right">WEAR</th><th class="pb-1 text-right">STATUS</th>
             </tr>
           </thead>
           <tbody id="leaderboard-body" class="text-xs font-bold tracking-wide"></tbody>
@@ -235,32 +308,32 @@ select, input, button { font-family: 'Rajdhani', sans-serif; }
 
     <div class="bg-black/85 border border-neutral-900 rounded p-4 flex flex-col h-[220px]">
       <div class="flex justify-between items-center mb-2">
-        <span class="f1b text-xs tracking-widest text-neutral-400 uppercase">TELSİZ VE STRATEJİ ODASI</span>
+        <span class="f1b text-xs tracking-widest text-neutral-400 uppercase">RADIO & STRATEGY ROOM</span>
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
       </div>
       <div id="chat-messages" class="flex-1 overflow-y-auto space-y-2 p-2 bg-neutral-950/80 rounded border border-neutral-900 text-xs font-mono"></div>
       <div class="mt-2 flex space-x-2">
-        <input type="text" id="chat-input" placeholder="Telsiz mesajı veya komite direktifi..." class="flex-1 bg-black border border-neutral-800 rounded px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-600 text-neutral-100">
-        <button onclick="sendChatMessage()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded text-xs uppercase tracking-wider">GÖNDER</button>
+        <input type="text" id="chat-input" placeholder="Radio message or committee directive..." class="flex-1 bg-black border border-neutral-800 rounded px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-600 text-neutral-100">
+        <button onclick="sendChatMessage()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded text-xs uppercase tracking-wider">SEND</button>
       </div>
     </div>
 
     <div id="workspace-container" class="bg-black/85 border border-neutral-900 rounded p-4 flex-1">
-      <div class="text-center py-8 text-neutral-500 font-bold uppercase tracking-widest text-xs">Lütfen yetki kodu ile pit duvarına bağlanın...</div>
+      <div class="text-center py-8 text-neutral-500 font-bold uppercase tracking-widest text-xs">Please connect to the pit wall with an access code...</div>
     </div>
   </div>
 </main>
 
 <footer class="bg-neutral-950 border-t border-neutral-900 py-3 px-6 flex justify-between items-center text-[10px] text-neutral-500 uppercase font-bold tracking-wider shrink-0">
   <div>F1 2026 MUN COGNITIVE SYSTEMS &copy; COMMITTEE ADVISOR</div>
-  <div class="flex items-center space-x-2"><span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span>SİMÜLASYON AKTİF</span></div>
+  <div class="flex items-center space-x-2"><span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span>SIMULATION ACTIVE</span></div>
 </footer>
 
 <div id="custom-modal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 hidden">
   <div class="max-w-md w-full bg-neutral-950 border-2 border-yellow-500 rounded-lg p-6 text-center shadow-2xl relative">
-    <span id="modal-title" class="f1b text-lg tracking-widest text-yellow-500 uppercase block mb-3">YARIŞ OLAYI</span>
+    <span id="modal-title" class="f1b text-lg tracking-widest text-yellow-500 uppercase block mb-3">RACE INCIDENT</span>
     <div class="max-h-[300px] overflow-y-auto text-left mb-6 pr-1 font-mono text-xs"><p id="modal-body" class="text-neutral-200 leading-relaxed"></p></div>
-    <button onclick="closeModal()" class="w-full bg-neutral-900 hover:bg-neutral-800 border border-yellow-500/30 text-white font-bold py-2 px-4 rounded transition-all uppercase text-xs tracking-wider">ANLAŞILDI</button>
+    <button onclick="closeModal()" class="w-full bg-neutral-900 hover:bg-neutral-800 border border-yellow-500/30 text-white font-bold py-2 px-4 rounded transition-all uppercase text-xs tracking-wider">UNDERSTOOD</button>
   </div>
 </div>
 
@@ -306,12 +379,13 @@ const UNIT = 1 / TICKS_PER_LAP;
 const PIT_STOP_MIN_MS = 19000;
 const PIT_STOP_MAX_MS = 20000;
 
-// Grid pozisyonlarını, başlangıç/bitiş çizgisinin HEMEN ÖNÜNDE değil,
-// HEMEN ARDINDA konumlandırır. Böylece yarış başladığında pilotlar tam bir
-// tur kat etmek zorunda kalır; aksi halde bitiş çizgisine çok yakın
-// başladıklarında tur sayacı yarış başlar başlamaz yanlışlıkla artıyordu.
+// Positions the grid slightly AFTER the start/finish line rather than right
+// before it. This means that when the race starts, drivers must complete a
+// full lap before the lap counter increases; otherwise, starting too close
+// to the line caused the lap counter to increment incorrectly right at the
+// start of the race.
 function gridStartProgress(i, total){
-  const spread = 0.05; // ızgaradaki tüm araçları ilk %5'lik dilime sıkıştır
+  const spread = 0.05; // pack all grid cars into the first 5% of the lap
   const denom = Math.max(1, total - 1);
   return 0.01 + ((total - 1 - i) / denom) * spread;
 }
@@ -319,14 +393,18 @@ function gridStartProgress(i, total){
 function freshDrivers(){
   return drivers.map((d,i)=>{
     const startProgress = gridStartProgress(i, drivers.length);
-    return {...d, progress: startProgress, totalDistance: startProgress, tyreWear: Math.random()*5, status:'OK', isDSQ:false, penalty:null, hidden:false};
+    return {...d, progress: startProgress, totalDistance: startProgress, tyreWear: Math.random()*5, status:'OK', isDSQ:false, penalty:null, hidden:false, lastCrossTick:0};
   });
 }
 
 let state = {
   lap: 1, maxLaps: 78, flagStatus: 'NORMAL', yellowSector: null,
+  paused: false,
+  tickCount: 0,
+  fastestLap: {abbr:null, timeSec:null},
+  raceFinished: false,
   drivers: freshDrivers(),
-  logs: [{time:getTimestamp(), sender:'SISTEM', message:'Monaco GP Yarış Kontrol Sistemi başlatıldı. Rollerden birini seçin.'}],
+  logs: [{time:getTimestamp(), sender:'SYSTEM', message:'Monaco GP Race Control System initialized. Select one of the roles.'}],
   stewardIncidents: [],
   _v: 0
 };
@@ -347,17 +425,26 @@ function raceSort(a,b){
   return (b.totalDistance||b.progress||0) - (a.totalDistance||a.progress||0);
 }
 
+function driverBadgesFor(d){
+  let out = '';
+  if(d.status==='PIT') out += '<span class="pit-badge" title="In the pits">P</span>';
+  if(state.fastestLap && state.fastestLap.abbr===d.abbr) out += '<span class="fastest-lap-badge" title="Fastest lap">⏱</span>';
+  if(state.raceFinished && !d.isDSQ && !d.status.startsWith('DNF')) out += '<span class="checkered-badge" title="Finished"></span>';
+  return out;
+}
+
 function render(){
   const flagPill = document.getElementById('status-flag-pill');
   document.getElementById('lap-counter').innerText = `${state.lap} / ${state.maxLaps}`;
   flagPill.className = "px-4 py-1 rounded font-bold tracking-widest text-xs uppercase transition-all duration-300 ";
   const f = state.flagStatus;
   if(f==='GREEN'||f==='NORMAL'){flagPill.className+=' bg-emerald-600 text-white';flagPill.innerText='GREEN FLAG / RACE LIVE';}
-  else if(f==='YELLOW'){flagPill.className+=' bg-amber-400 text-black blink-y';flagPill.innerText=`YELLOW FLAG - SEKTÖR ${state.yellowSector||'GENEL'}`;}
+  else if(f==='YELLOW'){flagPill.className+=' bg-amber-400 text-black blink-y';flagPill.innerText=`YELLOW FLAG - SECTOR ${state.yellowSector||'GENERAL'}`;}
   else if(f==='VSC'){flagPill.className+=' bg-amber-500 text-black';flagPill.innerText='VIRTUAL SAFETY CAR';}
   else if(f==='SC'){flagPill.className+=' bg-amber-600 text-black blink-y';flagPill.innerText='SAFETY CAR DEPLOYED';}
-  else if(f==='RED'){flagPill.className+=' bg-red-600 text-white blink-r';flagPill.innerText='RED FLAG - SESSION SUSPENDED';}
+  else if(f==='RED'){flagPill.className+=' bg-red-600 text-white blink-r';flagPill.innerText= state.raceFinished ? 'CHECKERED FLAG - RACE FINISHED' : 'RED FLAG - SESSION SUSPENDED';}
   else if(f==='STARTING'){flagPill.className+=' bg-neutral-800 text-white';flagPill.innerText='RACE START SEQUENCE';}
+  if(state.paused){ flagPill.innerText += ' (PAUSED)'; }
 
   updateFlagPanel();
   updateTVLeaderboard();
@@ -373,12 +460,12 @@ function updateSyncBadge(){
   const el=document.getElementById('sync-status');
   if(!el) return;
   if(typeof syncDisabled !== 'undefined' && syncDisabled){
-    el.innerText = '⚠️ YEREL MOD (paylaşım yok)';
+    el.innerText = '⚠️ LOCAL MODE (no sharing)';
     el.className = 'text-[10px] font-bold uppercase tracking-wider text-amber-500';
     return;
   }
-  const role = isLeader ? 'YAYIN KAYNAĞI' : 'İZLEYİCİ';
-  el.innerText = `🔗 SENKRON (${role})`;
+  const role = isLeader ? 'BROADCAST SOURCE' : 'VIEWER';
+  el.innerText = `🔗 SYNCED (${role})`;
   el.className = 'text-[10px] font-bold uppercase tracking-wider ' + (isLeader ? 'text-emerald-500' : 'text-sky-400');
 }
 
@@ -417,11 +504,11 @@ function updateFlagPanel(){
   stripe.style.opacity='1'; stripe.style.height='140px'; panel.style.height='75px';
   const f=state.flagStatus;
   const map = {
-    YELLOW:['YELLOW FLAG','var(--safety-yellow)','#000',`SEKTÖR ${state.yellowSector||'GENEL'}`],
+    YELLOW:['YELLOW FLAG','var(--safety-yellow)','#000',`SECTOR ${state.yellowSector||'GENERAL'}`],
     GREEN:['GREEN FLAG','var(--safety-green)','#fff','TRACK CLEAR'],
     VSC:['VSC ACTIVE','var(--safety-yellow)','#000','VIRTUAL SAFETY CAR'],
     SC:['SAFETY CAR','var(--safety-yellow)','#000','SAFETY CAR DEPLOYED'],
-    RED:['RED FLAG','var(--f1-red)','#fff','SESSION SUSPENDED']
+    RED:['RED FLAG','var(--f1-red)','#fff', state.raceFinished ? 'RACE FINISHED' : 'SESSION SUSPENDED']
   };
   if(map[f]){
     title.innerText=map[f][0]; title.style.background=map[f][1]; title.style.color=map[f][2]; cont.innerText=map[f][3];
@@ -435,11 +522,11 @@ function gapTextFor(sorted, idx){
   if(d.isDSQ) return 'DSQ';
   if(d.status==='DNF_CRASH') return 'DNF';
   if(d.status==='DNF_ENGINE') return 'DNF';
-  if(d.status==='PIT') return 'PİT';
+  if(d.status==='PIT') return 'PIT';
   if(idx===0) return 'LEADER';
   const leaderTD = sorted[0].totalDistance || 0;
   const gapSeconds = Math.max(0, (leaderTD - (d.totalDistance||0)) * LAP_SECONDS);
-  return `+${gapSeconds.toFixed(3)}`;
+  return `+${gapSeconds.toFixed(3)}s`;
 }
 
 function updateTVLeaderboard(){
@@ -453,12 +540,14 @@ function updateTVLeaderboard(){
     const gapText = gapTextFor(sorted, i);
     let tireBadge=`<div class="f1-tire ${tireClassFor(d.tire)}">${d.tire}</div>`;
     if(d.isDSQ) tireBadge='<div class="text-[9px] text-red-500 font-bold">OUT</div>';
-    else if(d.status==='DNF_CRASH') tireBadge='<div class="text-[9px] text-red-500 font-bold">KAZA</div>';
-    else if(d.status==='DNF_ENGINE') tireBadge='<div class="text-[9px] text-amber-500 font-bold">MOTOR</div>';
-    row.innerHTML=`<div class="w-6 text-center font-black">${i+1}</div>
+    else if(d.status==='DNF_CRASH') tireBadge='<div class="text-[9px] text-red-500 font-bold">CRASH</div>';
+    else if(d.status==='DNF_ENGINE') tireBadge='<div class="text-[9px] text-amber-500 font-bold">ENGINE</div>';
+    const badges = driverBadgesFor(d);
+    row.innerHTML=`<div class="w-6 text-center font-black pos-font">${i+1}</div>
       <div class="w-1.5 h-4 mx-2 rounded" style="background:${d.color}"></div>
-      <div class="font-bold flex-1 text-white">${d.abbr}</div>
-      <div class="text-[10px] text-neutral-400 font-mono w-16 text-right pr-2">${gapText}</div>${tireBadge}`;
+      <div class="font-bold flex-1 text-white driver-font">${d.abbr}</div>
+      <div class="flex items-center space-x-1 mr-1">${badges}</div>
+      <div class="text-[10px] text-neutral-400 tel-font w-16 text-right pr-2">${gapText}</div>${tireBadge}`;
     grid.appendChild(row);
   });
 }
@@ -469,16 +558,17 @@ function updateTelemetryTable(){
   sorted.forEach((d,idx)=>{
     let statusMarkup='<span class="text-emerald-500 font-bold">OK</span>';
     if(d.isDSQ) statusMarkup='<span class="text-red-600 line-through">DSQ</span>';
-    else if(d.status==='DNF_CRASH') statusMarkup='<span class="text-red-500 animate-pulse">DNF (KAZA)</span>';
-    else if(d.status==='DNF_ENGINE') statusMarkup='<span class="text-amber-500">DNF (MOTOR)</span>';
-    else if(d.status==='PIT') statusMarkup='<span class="text-sky-400 animate-pulse">BOX</span>';
+    else if(d.status==='DNF_CRASH') statusMarkup='<span class="text-red-500 animate-pulse">DNF (CRASH)</span>';
+    else if(d.status==='DNF_ENGINE') statusMarkup='<span class="text-amber-500">DNF (ENGINE)</span>';
+    else if(d.status==='PIT') statusMarkup='<span class="text-sky-400 animate-pulse">PIT</span>';
     const gapText = gapTextFor(sorted, idx);
+    const badges = driverBadgesFor(d);
     const tr=document.createElement('tr');
     tr.className='border-b border-neutral-900/60';
-    tr.innerHTML=`<td class="py-1 font-bold text-neutral-500 w-8">${idx+1}</td>
-      <td class="py-1 flex items-center space-x-1.5"><span class="w-1 h-3 inline-block rounded" style="background:${d.color}"></span><span class="text-neutral-200">${d.fname[0]}. ${d.lname}</span></td>
+    tr.innerHTML=`<td class="py-1 font-bold text-neutral-500 w-8 pos-font">${idx+1}</td>
+      <td class="py-1"><div class="flex items-center space-x-1.5"><span class="w-1 h-3 inline-block rounded" style="background:${d.color}"></span><span class="text-neutral-200 driver-font">${d.fname[0]}. ${d.lname}</span><span class="flex items-center space-x-1">${badges}</span></div></td>
       <td class="py-1 text-center"><div class="f1-tire ${tireClassFor(d.tire)} mx-auto">${d.tire}</div></td>
-      <td class="py-1 text-right text-neutral-400 font-mono text-[10px]">${gapText}</td>
+      <td class="py-1 text-right text-neutral-400 tel-font text-[10px]">${gapText}</td>
       <td class="py-1 text-right text-neutral-400">${Math.floor(d.tyreWear||0)}%</td>
       <td class="py-1 text-right">${statusMarkup}</td>`;
     tb.appendChild(tr);
@@ -488,7 +578,7 @@ function updateTelemetryTable(){
 function updateRadioLog(){
   const box=document.getElementById('chat-messages'); box.innerHTML='';
   state.logs.slice(-40).forEach(log=>{
-    const isSystem=log.sender==='SISTEM';
+    const isSystem=log.sender==='SYSTEM';
     const div=document.createElement('div');
     div.className='py-1 border-b border-neutral-900/40 flex flex-col';
     let senderMarkup=`<span class="text-red-500 font-bold">[${log.sender}]</span>`;
@@ -531,20 +621,20 @@ function handleLogin(){
   const v=document.getElementById('access-code-input').value.trim().toUpperCase();
   if(v==='RUI-RD'){currentRole='director';currentSubRole='Rui Marques';}
   else if(v==='CHAIR'){currentRole='chair';currentSubRole='Chair/USG';}
-  else if(v==='PRO-TV'){currentRole='tv';currentSubRole='Canlı Yayın';}
+  else if(v==='PRO-TV'){currentRole='tv';currentSubRole='Live Broadcast';}
   else if(STEWARDS[v.replace('STW-','')]){currentRole='steward';currentSubRole=STEWARDS[v.replace('STW-','')];}
   else if(TEAMS[v.replace('-TP','')]){currentRole='team_principal';currentSubRole=v.replace('-TP','');}
-  else { showModal('HATA','Yetkisiz erişim kodu. Lütfen kod kılavuzunu inceleyiniz.','border-red-600','text-red-500'); return; }
+  else { showModal('ERROR','Unauthorized access code. Please check the code guide.','border-red-600','text-red-500'); return; }
 
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('role-badge').innerText=`${currentRole.toUpperCase()} : ${currentSubRole}`;
   renderRoleWorkspace();
-  state.logs.push({time:getTimestamp(),sender:'SISTEM',message:`🟢 ${currentSubRole} sisteme bağlandı.`});
+  state.logs.push({time:getTimestamp(),sender:'SYSTEM',message:`🟢 ${currentSubRole} connected to the system.`});
   render();
   pushState();
 }
 function logout(){
-  state.logs.push({time:getTimestamp(),sender:'SISTEM',message:`🔴 ${currentSubRole} bağlantıyı kesti.`});
+  state.logs.push({time:getTimestamp(),sender:'SYSTEM',message:`🔴 ${currentSubRole} disconnected.`});
   pushState();
   currentRole=null; currentSubRole=null;
   document.getElementById('login-screen').classList.remove('hidden');
@@ -553,7 +643,7 @@ function logout(){
 function sendChatMessage(){
   const input=document.getElementById('chat-input');
   const text=input.value.trim(); if(!text) return;
-  state.logs.push({time:getTimestamp(),sender:currentSubRole||'ANONİM',message:text});
+  state.logs.push({time:getTimestamp(),sender:currentSubRole||'ANONYMOUS',message:text});
   input.value=''; render();
   pushState();
 }
@@ -578,25 +668,26 @@ function renderChairWorkspace(container){
   container.innerHTML = `
     <div class="flex flex-col h-full space-y-3 overflow-y-auto">
       <div class="flex justify-between items-center border-b border-neutral-800 pb-2">
-        <h3 class="f1b text-sm tracking-widest text-yellow-500 uppercase">CHAIR / USG KONTROL PANELİ</h3>
+        <h3 class="f1b text-sm tracking-widest text-yellow-500 uppercase">CHAIR / USG CONTROL PANEL</h3>
       </div>
 
       <div class="border border-yellow-600/30 p-2.5 rounded bg-yellow-950/10 space-y-2">
-        <span class="text-[10px] text-yellow-500 font-bold uppercase tracking-wider block">🏁 YARIŞ AYARLARI</span>
+        <span class="text-[10px] text-yellow-500 font-bold uppercase tracking-wider block">🏁 RACE SETTINGS</span>
         <div class="flex items-center space-x-2">
-          <label class="text-[10px] text-neutral-400 font-bold uppercase whitespace-nowrap">Toplam Tur Sayısı:</label>
+          <label class="text-[10px] text-neutral-400 font-bold uppercase whitespace-nowrap">Total Lap Count:</label>
           <input type="number" id="chair-lap-count-input" min="1" max="200" step="1" value="${state.maxLaps}" class="flex-1 bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px] text-center font-bold">
         </div>
         <div class="grid grid-cols-2 gap-2">
-          <button onclick="applyLapCountOnly()" class="bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-1.5 rounded text-[10px] uppercase tracking-wider">SADECE TUR SAYISINI GÜNCELLE</button>
-          <button onclick="resetSimulation()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-1.5 rounded text-[10px] uppercase tracking-wider">🔄 YARIŞI SIFIRDAN BAŞLAT</button>
+          <button onclick="applyLapCountOnly()" class="bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-1.5 rounded text-[10px] uppercase tracking-wider">UPDATE LAP COUNT ONLY</button>
+          <button onclick="resetSimulation()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-1.5 rounded text-[10px] uppercase tracking-wider">🔄 RESTART RACE FROM SCRATCH</button>
         </div>
-        <p class="text-[9px] text-neutral-600 leading-snug">"Sadece tur sayısını güncelle": yarışı etkilemeden hedef tur sayısını değiştirir. "Yarışı sıfırdan başlat": tüm pilotları başlangıç ızgarasına döndürür, tur sayacını 1'e çeker ve yarışı yukarıda girdiğiniz tur sayısıyla yeniden başlatır.</p>
+        <p class="text-[9px] text-neutral-600 leading-snug">"Update lap count only": changes the target lap count without affecting the race. "Restart race from scratch": returns all drivers to the starting grid, resets the lap counter to 1, and restarts the race with the lap count entered above.</p>
       </div>
 
       <div class="grid grid-cols-2 gap-2">
         <button onclick="showLights()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">🚦 START LIGHTS</button>
         <button onclick="extinguishLightsAndStart()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">🏁 EXTINGUISH START</button>
+        <button id="chair-pause-btn" onclick="toggleRacePause()" class="col-span-2 bg-amber-600 hover:bg-amber-700 text-black font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">⏸ PAUSE RACE</button>
         <button onclick="changeTrackFlag('GREEN')" class="bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">🟢 GREEN</button>
         <button onclick="changeTrackFlag('VSC')" class="bg-amber-500 hover:bg-amber-600 text-black font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">⏱️ VSC</button>
         <button onclick="changeTrackFlag('SC')" class="bg-amber-600 hover:bg-amber-700 text-black font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">🚓 SAFETY CAR</button>
@@ -604,31 +695,31 @@ function renderChairWorkspace(container){
       </div>
 
       <div class="border border-neutral-800 p-2.5 rounded bg-black/40">
-        <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block mb-1.5">MANUEL SIRALAMA DÜZENLEME</span>
+        <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block mb-1.5">MANUAL ORDER EDITING</span>
         <div id="chair-order-list" class="space-y-1 max-h-[180px] overflow-y-auto pr-1"></div>
       </div>
 
       <div class="border border-neutral-800 p-2.5 rounded bg-black/40 space-y-2">
-        <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block">GEÇİŞ TETİKLE (İKİ ARAÇ ARASINDA)</span>
+        <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block">TRIGGER OVERTAKE (BETWEEN TWO CARS)</span>
         <div class="grid grid-cols-2 gap-2">
           <select id="chair-overtake-front" class="bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]"></select>
           <select id="chair-overtake-back" class="bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]"></select>
         </div>
-        <textarea id="chair-overtake-text" rows="2" placeholder="Geçiş açıklamasını kendiniz yazın (telsiz duyurusu)..." class="w-full bg-black border border-neutral-800 text-white px-2 py-1.5 rounded text-[11px] focus:outline-none"></textarea>
-        <button onclick="chairForceOvertake()" class="w-full bg-sky-700 hover:bg-sky-600 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">GEÇİŞİ UYGULA</button>
+        <textarea id="chair-overtake-text" rows="2" placeholder="Write the overtake description yourself (radio announcement)..." class="w-full bg-black border border-neutral-800 text-white px-2 py-1.5 rounded text-[11px] focus:outline-none"></textarea>
+        <button onclick="chairForceOvertake()" class="w-full bg-sky-700 hover:bg-sky-600 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">APPLY OVERTAKE</button>
       </div>
 
       <div class="border border-neutral-800 p-2.5 rounded bg-black/40 space-y-2">
-        <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block">KAZA / ARIZA TETİKLE</span>
-        <p class="text-[9px] text-neutral-600 leading-snug">Not: Bir kaza tetiklemek bayrak durumunu otomatik değiştirmez. Gerekirse bayrağı yukarıdaki butonlarla ayrıca siz belirleyin.</p>
+        <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block">TRIGGER CRASH / FAILURE</span>
+        <p class="text-[9px] text-neutral-600 leading-snug">Note: Triggering a crash does not automatically change the flag status. If needed, set the flag separately using the buttons above.</p>
         <select id="chair-crash-driver" class="w-full bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]"></select>
-        <textarea id="chair-crash-text" rows="3" placeholder="Kaza / arıza açıklamasını kendiniz yazın (telsiz duyurusu)..." class="w-full bg-black border border-neutral-800 text-white px-2 py-1.5 rounded text-[11px] focus:outline-none"></textarea>
+        <textarea id="chair-crash-text" rows="3" placeholder="Write the crash / failure description yourself (radio announcement)..." class="w-full bg-black border border-neutral-800 text-white px-2 py-1.5 rounded text-[11px] focus:outline-none"></textarea>
         <select id="chair-crash-type" class="w-full bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]">
-          <option value="DNF_CRASH">Kaza (DNF)</option>
-          <option value="DNF_ENGINE">Motor Arızası (DNF)</option>
-          <option value="PIT">Hasarla Pit'e Girer</option>
+          <option value="DNF_CRASH">Crash (DNF)</option>
+          <option value="DNF_ENGINE">Engine Failure (DNF)</option>
+          <option value="PIT">Enters Pit with Damage</option>
         </select>
-        <button onclick="chairTriggerCrash()" class="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">OLAYI UYGULA</button>
+        <button onclick="chairTriggerCrash()" class="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">APPLY INCIDENT</button>
       </div>
     </div>
   `;
@@ -643,11 +734,11 @@ function populateChairSelectors(){
   const crash=document.getElementById('chair-crash-driver');
   const opts = activeDriverOptions();
 
-  // Yarış her tick'te (150ms) render edildiği için bu listeleri her seferinde
-  // yeniden oluşturmak, kullanıcının az önce seçtiği aracı sürekli ilk sıraya
-  // resetliyordu. Artık: (1) liste gerçekten değişmediyse DOM'a hiç dokunmuyoruz,
-  // (2) değiştiyse bile kullanıcının önceki seçimini, hâlâ geçerliyse geri
-  // yüklüyoruz, böylece seçim kalıcı oluyor.
+  // Since the race re-renders every tick (150ms), rebuilding these lists
+  // every time was resetting the user's just-made selection back to the
+  // top of the list on every render. Now we: (1) never touch the DOM if the
+  // list genuinely hasn't changed, and (2) if it has, restore the user's
+  // previous selection when it's still valid, so the choice persists.
   if(opts !== _lastDriverOptionsSignature){
     _lastDriverOptionsSignature = opts;
     [front, back, crash].forEach(sel=>{
@@ -664,6 +755,12 @@ function populateChairSelectors(){
   const lapInput=document.getElementById('chair-lap-count-input');
   if(lapInput && document.activeElement !== lapInput){
     lapInput.value = state.maxLaps;
+  }
+  const pauseBtn=document.getElementById('chair-pause-btn');
+  if(pauseBtn){
+    pauseBtn.innerText = state.paused ? '▶ RESUME RACE' : '⏸ PAUSE RACE';
+    pauseBtn.className = 'col-span-2 font-bold py-1.5 rounded text-[11px] uppercase tracking-wider ' +
+      (state.paused ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-amber-600 hover:bg-amber-700 text-black');
   }
 }
 
@@ -694,7 +791,7 @@ function chairMoveDriver(abbr, dir){
   const tmp=a.totalDistance; a.totalDistance=b.totalDistance; b.totalDistance=tmp;
   a.totalDistance += dir<0 ? 0.0005 : -0.0005;
   a.progress = ((a.progress||0) + (dir<0?0.0005:-0.0005) + 1) % 1;
-  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`👑 CHAIR: Sıralama manuel olarak güncellendi (${abbr} ${dir<0?'yükseldi':'düştü'}).`});
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`👑 CHAIR: Order manually updated (${abbr} ${dir<0?'moved up':'moved down'}).`});
   render();
   pushState();
 }
@@ -703,13 +800,13 @@ function chairForceOvertake(){
   const frontAbbr=document.getElementById('chair-overtake-front').value; 
   const backAbbr=document.getElementById('chair-overtake-back').value;   
   const text=document.getElementById('chair-overtake-text').value.trim();
-  if(frontAbbr===backAbbr){ showModal('HATA','Aynı aracı seçtiniz.','border-red-600','text-red-500'); return; }
+  if(frontAbbr===backAbbr){ showModal('ERROR','You selected the same car.','border-red-600','text-red-500'); return; }
   const front=state.drivers.find(d=>d.abbr===frontAbbr);
   const back=state.drivers.find(d=>d.abbr===backAbbr);
   if(!front||!back) return;
   back.progress = (front.progress + 0.004) % 1;
   back.totalDistance = (front.totalDistance||0) + 0.004;
-  state.logs.push({time:getTimestamp(),sender:currentSubRole,message: text || `👑 CHAIR: ${back.abbr}, ${front.abbr} önüne geçti.`});
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message: text || `👑 CHAIR: ${back.abbr} passed ahead of ${front.abbr}.`});
   document.getElementById('chair-overtake-text').value='';
   render();
   pushState();
@@ -721,7 +818,7 @@ function chairTriggerCrash(){
   const typeChoice=document.getElementById('chair-crash-type').value;
   const driver=state.drivers.find(d=>d.abbr===abbr);
   if(!driver) return;
-  if(!text){ showModal('EKSİK AÇIKLAMA','Lütfen olay açıklamasını yazın.','border-red-600','text-red-500'); return; }
+  if(!text){ showModal('MISSING DESCRIPTION','Please write the incident description.','border-red-600','text-red-500'); return; }
 
   driver.status = typeChoice;
   if(typeChoice==='PIT'){ driver.tyreWear = 100; }
@@ -729,7 +826,7 @@ function chairTriggerCrash(){
   document.getElementById('chair-crash-text').value='';
 
   if(typeChoice!=='PIT'){
-    document.getElementById('po-title').innerText = typeChoice==='DNF_CRASH' ? 'KAZA / DNF' : 'MOTOR ARIZASI / DNF';
+    document.getElementById('po-title').innerText = typeChoice==='DNF_CRASH' ? 'CRASH / DNF' : 'ENGINE FAILURE / DNF';
     document.getElementById('po-name').innerText = `${driver.fname} ${driver.lname}`;
     const ov=document.getElementById('penalty-overlay');
     ov.classList.remove('hidden'); ov.style.display='flex';
@@ -739,7 +836,7 @@ function chairTriggerCrash(){
       const d=state.drivers.find(x=>x.abbr===abbr);
       if(d && d.status==='PIT'){
         d.status='OK'; d.tyreWear=0;
-        state.logs.push({time:getTimestamp(),sender:'SISTEM',message:`🟢 ${d.fname} ${d.lname} hasar kontrolünün ardından piste geri döndü.`});
+        state.logs.push({time:getTimestamp(),sender:'SYSTEM',message:`🟢 ${d.fname} ${d.lname} returned to the track after damage inspection.`});
         render();
         pushState();
       }
@@ -759,33 +856,44 @@ function getChosenLapCount(fallback){
 
 function applyLapCountOnly(){
   const val = getChosenLapCount(null);
-  if(val === null){ showModal('GEÇERSİZ DEĞER','Lütfen 1 ile 200 arasında geçerli bir tur sayısı girin.','border-red-600','text-red-500'); return; }
+  if(val === null){ showModal('INVALID VALUE','Please enter a valid lap count between 1 and 200.','border-red-600','text-red-500'); return; }
   state.maxLaps = val;
-  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`👑 CHAIR: Toplam tur sayısı ${val} olarak güncellendi.`});
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`👑 CHAIR: Total lap count updated to ${val}.`});
+  render();
+  pushState();
+}
+
+function toggleRacePause(){
+  state.paused = !state.paused;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message: state.paused ? '⏸ CHAIR: Race paused.' : '▶ CHAIR: Race resumed.'});
   render();
   pushState();
 }
 
 function resetSimulation(){
   const chosen = getChosenLapCount(78);
-  if(chosen === null){ showModal('GEÇERSİZ DEĞER','Lütfen 1 ile 200 arasında geçerli bir tur sayısı girin.','border-red-600','text-red-500'); return; }
+  if(chosen === null){ showModal('INVALID VALUE','Please enter a valid lap count between 1 and 200.','border-red-600','text-red-500'); return; }
   const laps = chosen;
   state = {
     lap:1, maxLaps: laps, flagStatus:'NORMAL', yellowSector:null,
+    paused: false,
+    tickCount: 0,
+    fastestLap: {abbr:null, timeSec:null},
+    raceFinished: false,
     drivers: freshDrivers(),
-    logs:[{time:getTimestamp(),sender:'SISTEM',message:`Simülasyon sıfırlandı. Yarış ${laps} tur olarak ayarlandı, tüm pilotlar başlangıç ızgarasına döndü.`}],
+    logs:[{time:getTimestamp(),sender:'SYSTEM',message:`Simulation reset. Race set to ${laps} laps, all drivers returned to the starting grid.`}],
     stewardIncidents:[],
     _v: (state._v||0) + 1
   };
   render();
   pushState();
-  showModal('YARIŞ SIFIRLANDI', `Simülasyon durumları ve tüm 20 pilot kaydı tamamen sıfırlanmıştır.\nToplam Tur: ${laps}`, 'border-red-600','text-red-500');
+  showModal('RACE RESET', `All simulation states and all 20 driver records have been completely reset.\nTotal Laps: ${laps}`, 'border-red-600','text-red-500');
 }
 
 function renderDirectorWorkspace(container){
   container.innerHTML = `
     <div class="flex flex-col h-full space-y-3">
-      <h3 class="f1b text-sm tracking-widest text-red-500 border-b border-neutral-800 pb-2 uppercase">YARIŞ DİREKTÖRÜ (${currentSubRole})</h3>
+      <h3 class="f1b text-sm tracking-widest text-red-500 border-b border-neutral-800 pb-2 uppercase">RACE DIRECTOR (${currentSubRole})</h3>
       <div class="grid grid-cols-2 gap-2">
         <button onclick="showLights()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 rounded text-[11px] uppercase">🚦 START LIGHTS</button>
         <button onclick="extinguishLightsAndStart()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-[11px] uppercase">🏁 EXTINGUISH</button>
@@ -795,7 +903,7 @@ function renderDirectorWorkspace(container){
         <button onclick="changeTrackFlag('RED')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 rounded text-[11px] uppercase">🔴 RED</button>
       </div>
       <div class="border border-neutral-800 p-2.5 rounded bg-black/40">
-        <span class="text-[10px] text-neutral-500 font-bold uppercase block mb-1.5">Sektörel Sarı Bayrak</span>
+        <span class="text-[10px] text-neutral-500 font-bold uppercase block mb-1.5">Sector Yellow Flag</span>
         <div class="grid grid-cols-3 gap-2">
           <button onclick="triggerSectorYellow(1)" class="bg-neutral-900 border border-amber-500/30 text-amber-500 text-[10px] py-1 rounded font-bold">SECTOR 1</button>
           <button onclick="triggerSectorYellow(2)" class="bg-neutral-900 border border-amber-500/30 text-amber-500 text-[10px] py-1 rounded font-bold">SECTOR 2</button>
@@ -803,18 +911,18 @@ function renderDirectorWorkspace(container){
         </div>
       </div>
       <div class="border border-neutral-800 p-2.5 rounded bg-black/40 space-y-2">
-        <span class="text-[10px] text-neutral-500 font-bold uppercase block">CEZA SEVKİ</span>
-        <div class="text-white text-xs font-bold" id="sel-driver-txt">Pilot: ${selectedDriver||'Seçilmedi (haritadan tıklayın)'}</div>
-        <button onclick="submitRDIncident()" class="w-full bg-neutral-900 hover:bg-neutral-800 text-[10px] font-bold py-1.5 rounded border border-neutral-800">HAKEM ODASINA SEVK (5s CEZA)</button>
+        <span class="text-[10px] text-neutral-500 font-bold uppercase block">PENALTY REFERRAL</span>
+        <div class="text-white text-xs font-bold" id="sel-driver-txt">Driver: ${selectedDriver||'Not selected (click on map)'}</div>
+        <button onclick="submitRDIncident()" class="w-full bg-neutral-900 hover:bg-neutral-800 text-[10px] font-bold py-1.5 rounded border border-neutral-800">REFER TO STEWARDS ROOM (5s PENALTY)</button>
       </div>
     </div>`;
 }
 
 function submitRDIncident(){
-  if(!selectedDriver){ showModal('EKSİK SEÇİM','Lütfen sol sıralama panelinden bir pilot seçin.','border-red-600','text-red-500'); return; }
+  if(!selectedDriver){ showModal('MISSING SELECTION','Please select a driver from the left order panel.','border-red-600','text-red-500'); return; }
   const driver=state.drivers.find(d=>d.abbr===selectedDriver);
-  state.stewardIncidents.push({id:Math.random().toString(36).slice(2,9), driverAbbr:selectedDriver, driverName:`${driver.fname} ${driver.lname}`, penaltyType:'5 SANİYE', votes:{}, status:'PENDING'});
-  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`⚖️ SORUŞTURMA SEVKİ: ${driver.fname} ${driver.lname} için 5 saniye ceza talebi Hakem Odasına sevk edildi.`});
+  state.stewardIncidents.push({id:Math.random().toString(36).slice(2,9), driverAbbr:selectedDriver, driverName:`${driver.fname} ${driver.lname}`, penaltyType:'5 SECONDS', votes:{}, status:'PENDING'});
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`⚖️ INVESTIGATION REFERRAL: A 5-second penalty request for ${driver.fname} ${driver.lname} has been referred to the Stewards Room.`});
   render();
   pushState();
 }
@@ -822,19 +930,19 @@ function submitRDIncident(){
 function renderStewardWorkspace(container){
   container.innerHTML = `
     <div class="flex flex-col h-full space-y-3">
-      <h3 class="f1b text-sm tracking-widest text-emerald-500 border-b border-neutral-800 pb-2 uppercase">HAKEM ODASI (${currentSubRole})</h3>
+      <h3 class="f1b text-sm tracking-widest text-emerald-500 border-b border-neutral-800 pb-2 uppercase">STEWARDS ROOM (${currentSubRole})</h3>
       <div id="steward-active-incident" class="bg-black/60 p-3 rounded border border-neutral-800 flex-1 flex flex-col justify-center items-center text-center"></div>
       <div class="grid grid-cols-2 gap-2 mt-auto">
-        <button onclick="voteStewardIncident('GUILTY')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 rounded uppercase">SUÇLU / CEZA ONAYLA</button>
-        <button onclick="voteStewardIncident('NOT_GUILTY')" class="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-bold py-2 rounded uppercase">YARIŞ KAZASI / CEZA YOK</button>
+        <button onclick="voteStewardIncident('GUILTY')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 rounded uppercase">GUILTY / APPROVE PENALTY</button>
+        <button onclick="voteStewardIncident('NOT_GUILTY')" class="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-bold py-2 rounded uppercase">RACING INCIDENT / NO PENALTY</button>
       </div>
     </div>`;
 }
 function voteStewardIncident(vote){
   const pending=state.stewardIncidents.find(i=>i.status==='PENDING');
-  if(!pending){ showModal('YOK','Aktif oylanacak inceleme bulunmamaktadır.','border-neutral-500','text-neutral-500'); return; }
+  if(!pending){ showModal('NONE','There is no active incident to vote on.','border-neutral-500','text-neutral-500'); return; }
   pending.votes[currentSubRole]=vote;
-  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`⚖️ Hakem ${currentSubRole}, ${pending.driverName} olayı için oy kullandı.`});
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`⚖️ Steward ${currentSubRole} voted on the ${pending.driverName} incident.`});
   const votes=Object.values(pending.votes);
   if(votes.length>=2){
     const guilty=votes.filter(v=>v==='GUILTY').length;
@@ -842,10 +950,10 @@ function voteStewardIncident(vote){
       pending.status='APPROVED';
       const d=state.drivers.find(x=>x.abbr===pending.driverAbbr);
       if(d) d.penalty='5s';
-      state.logs.push({time:getTimestamp(),sender:'HAKEMLER KURULU',message:`🚨 RESMİ KARAR: ${pending.driverName} için ceza kabul edildi!`});
+      state.logs.push({time:getTimestamp(),sender:'STEWARDS PANEL',message:`🚨 OFFICIAL DECISION: Penalty approved for ${pending.driverName}!`});
     } else {
       pending.status='DISMISSED';
-      state.logs.push({time:getTimestamp(),sender:'HAKEMLER KURULU',message:`🛡️ RESMİ KARAR: ${pending.driverName} olayı 'Yarış Kazası' olarak kapatıldı.`});
+      state.logs.push({time:getTimestamp(),sender:'STEWARDS PANEL',message:`🛡️ OFFICIAL DECISION: The ${pending.driverName} incident was closed as a 'Racing Incident'.`});
     }
   }
   render();
@@ -853,12 +961,12 @@ function voteStewardIncident(vote){
 }
 
 function renderTPWorkspace(container){
-  const teamData=TEAMS[currentSubRole]||{name:'TAKIM',color:'#ff0000'};
+  const teamData=TEAMS[currentSubRole]||{name:'TEAM',color:'#ff0000'};
   container.innerHTML = `
     <div class="flex flex-col h-full space-y-3">
-      <h3 class="f1b text-sm tracking-widest uppercase border-b border-neutral-800 pb-2" style="color:${teamData.color}">${teamData.name} PIT DUVARI</h3>
+      <h3 class="f1b text-sm tracking-widest uppercase border-b border-neutral-800 pb-2" style="color:${teamData.color}">${teamData.name} PIT WALL</h3>
       <div class="bg-black/40 p-2.5 rounded border border-neutral-800 space-y-2">
-        <span class="text-[10px] text-neutral-400 font-bold uppercase block">TAKIM SÜRÜCÜSÜ PİT STRATEJİSİ</span>
+        <span class="text-[10px] text-neutral-400 font-bold uppercase block">TEAM DRIVER PIT STRATEGY</span>
         <div id="tp-drivers-container" class="space-y-3"></div>
       </div>
     </div>`;
@@ -868,8 +976,8 @@ function renderTPDrivers(){
   const container=document.getElementById('tp-drivers-container');
   if(!container) return;
   const teamDrivers=state.drivers.filter(d=>d.team===currentSubRole);
-  // Rebuild edilmeden önce, her sürücü için o an seçili lastik tercihini
-  // hatırla, ki her render'da (150ms'de bir) seçim sıfırlanmasın.
+  // Before rebuilding, remember each driver's currently selected tire choice
+  // so that re-rendering (every 150ms) doesn't keep resetting the selection.
   const preservedTireChoice = {};
   teamDrivers.forEach(d=>{
     const existing = document.getElementById(`tire-choice-${d.abbr}`);
@@ -879,10 +987,10 @@ function renderTPDrivers(){
   teamDrivers.forEach(d=>{
     const div=document.createElement('div');
     div.className='flex items-center justify-between border-b border-neutral-900 pb-3 last:border-b-0 text-xs';
-    const pitLabel = d.status==='PIT' ? '<span class="text-sky-400 font-bold animate-pulse ml-1">(PİT BOKSUNDA - LASTİK DEĞİŞİYOR)</span>' : '';
+    const pitLabel = d.status==='PIT' ? '<span class="text-sky-400 font-bold animate-pulse ml-1">(IN THE PIT BOX - CHANGING TIRES)</span>' : '';
     const chosen = preservedTireChoice[d.abbr] || 'S';
     div.innerHTML=`<div><span class="font-bold text-white block">${d.fname} ${d.lname} (${d.abbr})</span>
-      <span class="text-[10px] text-neutral-400">Lastik: <span class="font-bold">${d.tire}</span> (Aşınma %${Math.floor(d.tyreWear||0)}) - Durum: ${d.status}</span>${pitLabel}</div>
+      <span class="text-[10px] text-neutral-400">Tire: <span class="font-bold">${d.tire}</span> (Wear %${Math.floor(d.tyreWear||0)}) - Status: ${d.status}</span>${pitLabel}</div>
       <div class="flex space-x-1.5">
         <select id="tire-choice-${d.abbr}" class="bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]" ${d.status==='PIT'?'disabled':''}>
           <option value="S" ${chosen==='S'?'selected':''}>Soft (S)</option><option value="M" ${chosen==='M'?'selected':''}>Medium (M)</option><option value="H" ${chosen==='H'?'selected':''}>Hard (H)</option>
@@ -896,11 +1004,11 @@ function triggerTPPitstop(abbr){
   const sel=document.getElementById(`tire-choice-${abbr}`); if(!sel) return;
   const driver=state.drivers.find(d=>d.abbr===abbr);
   if(!driver) return;
-  if(driver.status.startsWith('DNF')||driver.isDSQ){ showModal('KURAL İHLALİ','Yarış dışı kalmış bir araca pit stop uygulanamaz.','border-red-600','text-red-500'); return; }
+  if(driver.status.startsWith('DNF')||driver.isDSQ){ showModal('RULE VIOLATION','A pit stop cannot be applied to a car that is out of the race.','border-red-600','text-red-500'); return; }
   if(driver.status==='PIT'){ return; }
   const newTire = sel.value;
   driver.status='PIT';
-  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`🔧 ${driver.fname} ${driver.lname} pite girdi, lastik değişimi yapılıyor... (Yeni lastik: [${newTire}])`});
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`🔧 ${driver.fname} ${driver.lname} entered the pits, changing tires... (New tire: [${newTire}])`});
   render();
   pushState();
   const pitDuration = PIT_STOP_MIN_MS + Math.random()*(PIT_STOP_MAX_MS - PIT_STOP_MIN_MS);
@@ -908,7 +1016,7 @@ function triggerTPPitstop(abbr){
     const d=state.drivers.find(x=>x.abbr===abbr);
     if(d && d.status==='PIT'){
       d.status='OK'; d.tire=newTire; d.tyreWear=0;
-      state.logs.push({time:getTimestamp(),sender:'SISTEM',message:`🟢 ${d.fname} ${d.lname} pit çıkışından temiz havaya döndü. (Lastik: [${newTire}])`});
+      state.logs.push({time:getTimestamp(),sender:'SYSTEM',message:`🟢 ${d.fname} ${d.lname} exited the pits back into clean air. (Tire: [${newTire}])`});
       render();
       pushState();
     }
@@ -919,23 +1027,23 @@ function renderTVWorkspace(container){
   container.innerHTML = `<div class="flex flex-col h-full justify-center items-center text-center space-y-4 p-8">
     <span class="inline-block w-4 h-4 rounded-full bg-red-600 animate-ping"></span>
     <h3 class="f1b text-lg tracking-widest text-white uppercase">MONACO PRO TV BROADCAST STANDBY</h3>
-    <p class="text-xs text-neutral-400 max-w-xs leading-relaxed">Bu ekran delegelerin tüm yarışı ve telsiz konuşmalarını eşzamanlı izlemesi içindir.</p></div>`;
+    <p class="text-xs text-neutral-400 max-w-xs leading-relaxed">This screen is for delegates to simultaneously watch the entire race and radio communications.</p></div>`;
 }
 
 function syncWorkspace(){
   if(currentRole==='chair') populateChairSelectors();
-  else if(currentRole==='director'){ const el=document.getElementById('sel-driver-txt'); if(el) el.innerText='Pilot: '+(selectedDriver||'Seçilmedi'); }
+  else if(currentRole==='director'){ const el=document.getElementById('sel-driver-txt'); if(el) el.innerText='Driver: '+(selectedDriver||'Not selected'); }
   else if(currentRole==='steward'){
     const pending=state.stewardIncidents.find(i=>i.status==='PENDING');
     const div=document.getElementById('steward-active-incident');
     if(div){
       if(pending){
-        const voters=Object.keys(pending.votes).join(', ')||'Henüz oy yok';
-        div.innerHTML=`<span class="text-red-500 font-bold uppercase block mb-1 text-xs">SORUŞTURULAN OLAY</span>
-          <p class="text-xs font-bold text-white">${pending.driverName} - ${pending.penaltyType} Ceza Talebi</p>
-          <p class="text-[9px] text-neutral-400 mt-1.5">Oy Kullanan Hakemler: ${voters}</p>`;
+        const voters=Object.keys(pending.votes).join(', ')||'No votes yet';
+        div.innerHTML=`<span class="text-red-500 font-bold uppercase block mb-1 text-xs">INCIDENT UNDER REVIEW</span>
+          <p class="text-xs font-bold text-white">${pending.driverName} - ${pending.penaltyType} Penalty Request</p>
+          <p class="text-[9px] text-neutral-400 mt-1.5">Stewards Who Voted: ${voters}</p>`;
       } else {
-        div.innerHTML=`<span class="text-neutral-500 text-xs font-bold uppercase">Soruşturulan Aktif Bir Olay Bulunmuyor.</span>`;
+        div.innerHTML=`<span class="text-neutral-500 text-xs font-bold uppercase">No Active Incident Under Review.</span>`;
       }
     }
   } else if(currentRole==='team_principal'){ renderTPDrivers(); }
@@ -943,7 +1051,7 @@ function syncWorkspace(){
 
 function showLights(){
   state.flagStatus='STARTING';
-  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:'🚦 START PROSEDÜRÜ: 5 Kırmızı Işık Sistemi hazırlanıyor!'});
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:'🚦 START PROCEDURE: 5 Red Light System preparing!'});
   render();
   pushState();
   const lights=document.getElementById('start-lights');
@@ -962,7 +1070,7 @@ function extinguishLightsAndStart(){
   for(let i=1;i<=5;i++) document.getElementById('l'+i).style.backgroundColor='#220000';
   setTimeout(()=>{ lights.classList.add('hidden'); lights.classList.remove('grid'); },500);
   state.flagStatus='GREEN';
-  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:'🟢 IŞIKLAR SÖNDÜ VE MONACO GRAND PRIX BAŞLADI!'});
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:'🟢 LIGHTS OUT AND THE MONACO GRAND PRIX HAS BEGUN!'});
   render();
   pushState();
 }
@@ -981,13 +1089,13 @@ function applyRedFlagGrid() {
 function changeTrackFlag(f){
   state.flagStatus=f; state.yellowSector=null;
   if(f === 'RED') applyRedFlagGrid(); 
-  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`📢 Bayrak Durumu güncellendi: [${f} FLAG]`});
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`📢 Flag status updated: [${f} FLAG]`});
   render();
   pushState();
 }
 function triggerSectorYellow(sec){
   state.flagStatus='YELLOW'; state.yellowSector=sec;
-  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`📢 SEKTÖR ${sec} SARI BAYRAK: Pist üzerinde yerel tehlike!`});
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`📢 SECTOR ${sec} YELLOW FLAG: Local danger on track!`});
   render();
   pushState();
 }
@@ -997,6 +1105,9 @@ function simulationTick(){
 
   const f=state.flagStatus;
   if(f==='RED'||f==='STARTING') { render(); return; }
+  if(state.paused) { render(); return; } // Chair has paused the race; hold positions and stop advancing the simulation.
+
+  state.tickCount = (state.tickCount||0) + 1;
 
   const noOvertakeZone = (f==='SC'||f==='VSC'||f==='RED');
   const speedScale = f==='VSC'?0.35 : f==='SC'?0.45 : 1.0;
@@ -1045,6 +1156,18 @@ function simulationTick(){
     d.progress += increment;
     d.totalDistance = (d.totalDistance||0) + increment;
     if(d.progress >= 1){ d.progress -= 1; }
+
+    // Fastest-lap tracking: detect when this driver crosses the start/finish
+    // line and compare their lap time against the current record.
+    if(d._lastProgress !== undefined && d.progress < d._lastProgress - 0.5){
+      const lapTicks = state.tickCount - (d.lastCrossTick||0);
+      const lapTimeSec = lapTicks * TICK_MS / 1000;
+      d.lastCrossTick = state.tickCount;
+      if(!state.fastestLap.abbr || lapTimeSec < state.fastestLap.timeSec){
+        state.fastestLap = {abbr:d.abbr, timeSec:lapTimeSec};
+        state.logs.push({time:getTimestamp(), sender:'SYSTEM', message:`⏱ FASTEST LAP: ${d.fname} ${d.lname} - ${lapTimeSec.toFixed(3)}s`});
+      }
+    }
   });
 
   const leader = [...state.drivers].filter(d=>!d.isDSQ && !d.status.startsWith('DNF')).sort(raceSort)[0];
@@ -1052,7 +1175,8 @@ function simulationTick(){
     state.lap += 1;
     if(state.lap > state.maxLaps){
       state.flagStatus='RED';
-      state.logs.push({time:getTimestamp(),sender:'SISTEM',message:'🏁 DAMALI BAYRAK! Monaco GP MUN Yarış Simülasyonu tamamlandı!'});
+      state.raceFinished = true;
+      state.logs.push({time:getTimestamp(),sender:'SYSTEM',message:'🏁 CHECKERED FLAG! Monaco GP MUN Race Simulation completed!'});
     }
   }
   state.drivers.forEach(d=>{ d._lastProgress = d.progress; });
@@ -1087,13 +1211,13 @@ function closeModal(){ document.getElementById('custom-modal').classList.add('hi
 function getTimestamp(){ return new Date().toTimeString().split(' ')[0]; }
 
 // ================= MULTI-SCREEN SYNC (FIREBASE REALTIME DATABASE) =================
-// GitHub Pages statik bir barındırmadır, kendi başına sunucu/veritabanı içermez.
-// Bu yüzden ekranlar arası gerçek zamanlı senkronizasyon için ücretsiz bir
-// Firebase Realtime Database projesi kullanıyoruz. Aşağıdaki firebaseConfig
-// alanını KENDİ Firebase projenizin bilgileriyle doldurmanız gerekiyor.
-// Adımlar dosyanın altındaki / sohbetteki kurulum talimatlarında anlatılmıştır.
+// GitHub Pages is static hosting and has no server/database of its own.
+// So for real-time sync between screens we use a free Firebase Realtime
+// Database project. Fill in the firebaseConfig object below with your own
+// Firebase project's details. The steps are explained at the bottom of this
+// file / in the chat setup instructions.
 
-// ======= BURAYI KENDİ FIREBASE PROJENİZLE DOLDURUN =======
+// ======= FILL THIS IN WITH YOUR OWN FIREBASE PROJECT =======
 // Firebase Console > Project Settings > General > "Your apps" > Web app > SDK config
 const firebaseConfig = {
   apiKey: "AIzaSyD4plOVNeBupn6jSamX9AZDfkLoTuLYmE4",
@@ -1112,8 +1236,8 @@ const LEADER_PATH = 'f1mun/leaderHeartbeat';
 const SYNC_MS = 700;
 const LEADER_TIMEOUT_MS = 2500;
 const LEADER_SETTLE_MS = 220;
-let isLeader = true;       // yarış her zaman önce yerel olarak hemen başlar
-let syncDisabled = false;  // Firebase ulaşılamazsa true olur (sadece yerel modda çalışır)
+let isLeader = true;       // the race always starts locally right away
+let syncDisabled = false;  // becomes true if Firebase is unreachable (local-only mode)
 let db = null;
 let firebaseReady = false;
 let applyingRemoteState = false;
@@ -1121,7 +1245,7 @@ let applyingRemoteState = false;
 function initFirebase(){
   try{
     if(firebaseConfig.apiKey.includes('BURAYA_')){
-      console.warn('Firebase yapılandırması eksik: firebaseConfig alanlarını doldurun. Şu an sadece yerel modda çalışılıyor.');
+      console.warn('Firebase configuration missing: fill in the firebaseConfig fields. Running in local mode only for now.');
       firebaseReady = false;
       syncDisabled = true;
       return;
@@ -1130,7 +1254,7 @@ function initFirebase(){
     db = firebase.database();
     firebaseReady = true;
   }catch(e){
-    console.error('Firebase başlatılamadı:', e);
+    console.error('Firebase could not be initialized:', e);
     firebaseReady = false;
     syncDisabled = true;
   }
@@ -1143,7 +1267,7 @@ async function pushState(){
     state._by = CLIENT_ID;
     state._t = Date.now();
     await db.ref(STATE_PATH).set(state);
-  }catch(e){ console.error('pushState hata:', e); }
+  }catch(e){ console.error('pushState error:', e); }
 }
 
 async function pullState(){
@@ -1157,17 +1281,17 @@ async function pullState(){
         render();
       }
     }
-  }catch(e){ /* henüz paylaşılan bir durum yok, ilk açılışta normaldir */ }
+  }catch(e){ /* no shared state yet, which is normal on first load */ }
 }
 
-// Gerçek zamanlı dinleyici: herhangi bir ekranda yapılan değişiklik anında
-// diğer tüm bağlı ekranlara Firebase tarafından push edilir (polling beklemeden).
+// Real-time listener: any change made on one screen is pushed by Firebase
+// to all other connected screens instantly (without waiting for polling).
 function attachRealtimeListener(){
   if(!firebaseReady) return;
   db.ref(STATE_PATH).on('value', (snap)=>{
     if(!snap.exists()) return;
     const remote = snap.val();
-    if(remote._by === CLIENT_ID) return; // kendi gönderdiğimiz güncellemeyi yok say
+    if(remote._by === CLIENT_ID) return; // ignore the update we just sent ourselves
     if((remote._v||0) > (state._v||0)){
       applyingRemoteState = true;
       state = remote;
@@ -1180,8 +1304,9 @@ function attachRealtimeListener(){
 async function claimLeadership(){
   const now = Date.now();
   await db.ref(LEADER_PATH).set({clientId: CLIENT_ID, ts: now});
-  // Kısa bir bekleme: aynı anda başka bir sekme de liderliği talep ettiyse,
-  // son yazan (veritabanında kalan) kazanır ve biz takipçiye döneriz.
+  // Brief wait: if another tab also claimed leadership at the same time,
+  // whoever wrote last (and remains in the database) wins, and we fall
+  // back to being a follower.
   await new Promise(r=>setTimeout(r, LEADER_SETTLE_MS));
   try{
     const snap = await db.ref(LEADER_PATH).once('value');
@@ -1217,7 +1342,7 @@ async function heartbeat(){
     else if(!isLeader && wasLeader) stopEngine();
 
     updateSyncBadge();
-  }catch(e){ console.error('heartbeat hata:', e); }
+  }catch(e){ console.error('heartbeat error:', e); }
 }
 
 window.onload = async function(){
@@ -1225,7 +1350,7 @@ window.onload = async function(){
   pathLen = overlay.getTotalLength();
   initCars();
 
-  // Yarış, ağ/senkron durumu ne olursa olsun HEMEN yerel olarak başlar.
+  // The race starts locally immediately, regardless of network/sync status.
   startEngine();
   render();
 
