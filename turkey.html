@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rayfelmun'26 FIA Control Panel</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Firebase Realtime Database - used for live sync between screens on GitHub Pages -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap');
+
+/*
+  CUSTOM FONTS
+  Place the three font files in a "fonts" folder next to this HTML file
+  (or update the url() paths below to wherever you host them):
+    fonts/KHInterferenceTRIAL-Regular.otf
+    fonts/Formula1-Bold_web.ttf
+    fonts/Formula1-Regular-1.ttf
+*/
+@font-face {
+  font-family: 'KHInterference';
+  src: url('./fonts/KHInterferenceTRIAL-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'F1Bold';
+  src: url('./fonts/Formula1-Bold_web.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'F1Regular';
+  src: url('./fonts/Formula1-Regular-1.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+.pos-font { font-family: 'KHInterference', 'Orbitron', sans-serif; }
+.driver-font { font-family: 'F1Bold', 'Rajdhani', sans-serif; }
+.tel-font { font-family: 'F1Regular', 'Rajdhani', sans-serif; }
+
+:root {
+  --f1-red: #ff0000; 
+  --safety-yellow: #ffd000; 
+  --safety-green: #00d21d;
+  --soft-red: #ff0000; 
+  --medium-yellow: #f9d71c; 
+  --hard-white: #ffffff;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #040406;
+  color: #ffffff;
+  font-family: 'Rajdhani', sans-serif;
+}
+
+.f1b { font-family: 'Orbitron', sans-serif; font-weight: 900; }
+.f1r { font-family: 'Orbitron', sans-serif; font-weight: 400; }
+
+@keyframes blinky {
+  0%, 100% { background-color: #000000; color: var(--safety-yellow); }
+  50% { background-color: var(--safety-yellow); color: #000000; }
+}
+.blink-y { animation: blinky 1s infinite; }
+
+@keyframes blinkr {
+  0%, 100% { background-color: #000000; color: var(--f1-red); }
+  50% { background-color: var(--f1-red); color: #ffffff; }
+}
+.blink-r { animation: blinkr 1s infinite; }
+
+@keyframes pulse2 {
+  0% { opacity: 1; }
+  50% { opacity: 0.35; }
+  100% { opacity: 1; }
+}
+.pulse2 { animation: pulse2 0.8s infinite; }
+
+@keyframes trackRedPulse {
+  0%, 100% { stroke: #ff0000; filter: drop-shadow(0 0 10px #ff0000); }
+  50% { stroke: #550000; filter: none; }
+}
+@keyframes trackYellowPulse {
+  0%, 100% { stroke: #ffd000; filter: drop-shadow(0 0 10px #ffd000); }
+  50% { stroke: #6b5700; filter: none; }
+}
+@keyframes trackVSCFlash {
+  0%, 49% { stroke: #ffd000; filter: drop-shadow(0 0 10px #ffd000); }
+  50%, 100% { stroke: transparent; filter: none; }
+}
+
+.track-red-flag { animation: trackRedPulse 1.5s infinite; }
+.track-sc { animation: trackYellowPulse 1.5s infinite; }
+.track-vsc { animation: trackVSCFlash 0.8s infinite; }
+.track-sector-yellow { animation: trackYellowPulse 1s infinite; }
+
+@keyframes pitFrozen {
+  0%, 100% { filter: drop-shadow(0 0 4px #38bdf8); }
+  50% { filter: drop-shadow(0 0 9px #38bdf8); }
+}
+.pit-frozen { animation: pitFrozen 0.9s infinite; }
+
+@keyframes fastestLapGlow {
+  0%, 100% { box-shadow: 0 0 4px #b026ff; }
+  50% { box-shadow: 0 0 9px #d68bff; }
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #09090b; }
+::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--f1-red); }
+select, input, button { font-family: 'Rajdhani', sans-serif; }
+
+/* Tire compound letter — no circle/border, just the compound color */
+.f1-tire {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    font-family: 'F1Regular', 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 900;
+    box-sizing: border-box;
+    user-select: none;
+}
+.f1-tire.soft { color: #ff2b2b; }
+.f1-tire.medium { color: #ffd100; }
+.f1-tire.hard { color: #ffffff; }
+
+/* Pit indicator badge (green "P") */
+.pit-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  background: #00d21d;
+  color: #000;
+  font-family: 'F1Bold', 'Rajdhani', sans-serif;
+  font-weight: 900;
+  font-size: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Penalty badge (red time-penalty tag) */
+.penalty-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  height: 15px;
+  background: #ff0000;
+  color: #fff;
+  font-family: 'F1Bold', 'Rajdhani', sans-serif;
+  font-weight: 900;
+  font-size: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Fastest-lap badge (purple stopwatch) */
+.fastest-lap-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #b026ff;
+  color: #fff;
+  font-size: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  animation: fastestLapGlow 1.2s infinite;
+}
+
+/* Checkered flag badge shown once the race has finished */
+.checkered-badge {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000),
+    linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000);
+  background-size: 7.5px 7.5px;
+  background-position: 0 0, 3.75px 3.75px;
+}
+
+/* Team logo shown next to a driver's name instead of a flat color bar */
+.team-logo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+@media (max-width: 639px) {
+  #start-lights { padding: 0.5rem; gap: 0.4rem; }
+  #start-lights .w-8 { width: 1.4rem; height: 1.4rem; }
+}
+</style>
+</head>
+<body class="min-h-screen flex flex-col bg-neutral-950 text-neutral-100 selection:bg-red-600 selection:text-white">
+
+<div id="login-screen" class="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center p-4">
+  <div class="max-w-3xl w-full bg-neutral-900 border border-neutral-800 rounded-lg p-6 md:p-8 shadow-2xl text-center">
+    <div class="flex justify-center mb-4">
+      <div class="f1b text-4xl text-white tracking-widest italic flex items-center">F1<span class="text-red-600">MUN</span><span class="text-xs bg-red-600 text-white px-2 py-0.5 ml-2 rounded not-italic tracking-normal">NACO GP</span></div>
+    </div>
+    <h2 class="text-xl font-bold tracking-wider text-white mb-1 uppercase">COMMITTEE SIMULATION - SECURE ACCESS PANEL</h2>
+    <p class="text-neutral-400 text-sm mb-1">Please connect to the pit wall using your assigned access code.</p>
+    <p class="text-neutral-600 text-[11px] mb-6">All participants' screens display the same race synchronized in near real-time.</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+      <input type="password" id="access-code-input" placeholder="ACCESS CODE" class="md:col-span-2 bg-black border border-neutral-700 text-white text-center py-3 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-600 text-lg tracking-widest uppercase font-mono">
+      <button onclick="handleLogin()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded transition-all duration-300 tracking-wider text-xs uppercase">CONNECT TO SYSTEM</button>
+    </div>
+    <div class="mt-4 pt-4 border-t border-neutral-800 text-left max-h-[220px] overflow-y-auto pr-1">
+      <span class="text-xs text-neutral-500 font-bold uppercase tracking-wider block mb-2">All Access Codes Defined in the System:</span>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-[11px] text-neutral-400">
+        <div class="border-b border-neutral-800/40 pb-1 col-span-full font-bold text-neutral-500 uppercase">SPECIAL ADMINISTRATORS:</div>
+        <div>🔴 Race Director: <code class="bg-black px-1 py-0.5 rounded text-red-400 font-mono">RUI-RD</code></div>
+        <div>👑 USG/Chair: <code class="bg-black px-1 py-0.5 rounded text-yellow-400 font-mono">CHAIR</code></div>
+        <div>📺 LIVE: <code class="bg-black px-1 py-0.5 rounded text-sky-400 font-mono">PRO-TV</code></div>
+        <div class="border-b border-neutral-800/40 pt-1 pb-1 col-span-full font-bold text-neutral-500 uppercase">TEAM PRINCIPALS:</div>
+        <div>🏎️ Ferrari Principal: <code class="bg-black px-1 rounded text-red-500 font-mono">FER-TP</code></div>
+        <div>🏎️ Red Bull Principal: <code class="bg-black px-1 rounded text-blue-400 font-mono">RBR-TP</code></div>
+        <div>🏎️ Mercedes Principal: <code class="bg-black px-1 rounded text-teal-400 font-mono">MER-TP</code></div>
+        <div>🏎️ McLaren Principal: <code class="bg-black px-1 rounded text-orange-400 font-mono">MCL-TP</code></div>
+        <div>🏎️ Aston Martin Principal: <code class="bg-black px-1 rounded text-emerald-500 font-mono">AMR-TP</code></div>
+        <div>🏎️ Williams Principal: <code class="bg-black px-1 rounded text-blue-300 font-mono">WIL-TP</code></div>
+        <div>🏎️ Alpine Principal: <code class="bg-black px-1 rounded text-sky-500 font-mono">ALP-TP</code></div>
+        <div>🏎️ VCARB Principal: <code class="bg-black px-1 rounded text-indigo-400 font-mono">VCARB-TP</code></div>
+        <div>🏎️ Audi Sauber Principal: <code class="bg-black px-1 rounded text-green-400 font-mono">KOP-TP</code></div>
+        <div>🏎️ Haas Principal: <code class="bg-black px-1 rounded text-gray-400 font-mono">HAS-TP</code></div>
+        <div class="border-b border-neutral-800/40 pt-1 pb-1 col-span-full font-bold text-neutral-500 uppercase">STEWARDS:</div>
+        <div>⚖️ Steward G. Connelly: <code class="bg-black px-1 rounded font-mono">STW-GARRY</code></div>
+        <div>⚖️ Steward D. Warwick: <code class="bg-black px-1 rounded font-mono">STW-DEREK</code></div>
+        <div>⚖️ Steward J. Abed: <code class="bg-black px-1 rounded font-mono">STW-JOSE</code></div>
+        <div>⚖️ Steward S. Bellot: <code class="bg-black px-1 rounded font-mono">STW-SILVIA</code></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<header class="bg-neutral-950 border-b border-neutral-900 py-3 px-4 sm:px-6 flex flex-wrap justify-between items-center z-10 shrink-0 gap-y-2">
+  <div class="flex items-center space-x-3 sm:space-x-4">
+    <span class="f1b text-xl sm:text-2xl tracking-widest text-white italic">F1<span class="text-red-600">MUN</span></span>
+    <div class="h-6 w-[1px] bg-neutral-800 hidden sm:block"></div>
+    <div id="role-badge" class="bg-red-600/10 border border-red-600/30 text-red-500 text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded font-bold uppercase tracking-wider">Loading...</div>
+  </div>
+  <div class="flex items-center flex-wrap gap-3 sm:gap-6 my-1 sm:my-0">
+    <div class="flex items-center space-x-2">
+      <span class="text-neutral-500 text-[10px] sm:text-xs font-bold uppercase">LAP:</span>
+      <span id="lap-counter" class="f1b text-white text-base sm:text-lg tel-font">0 / 78</span>
+    </div>
+    <div class="h-6 w-[1px] bg-neutral-800 hidden sm:block"></div>
+    <div id="status-flag-pill" class="px-3 sm:px-4 py-1 rounded font-bold tracking-widest text-[10px] sm:text-xs uppercase transition-all duration-300 bg-emerald-600 text-white">GREEN FLAG</div>
+    <div class="h-6 w-[1px] bg-neutral-800 hidden sm:block"></div>
+    <div id="sync-status" class="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-neutral-500">SYNCHRONIZING...</div>
+  </div>
+  <button onclick="logout()" class="text-neutral-400 hover:text-red-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-colors">SECURE LOGOUT</button>
+</header>
+
+<main class="flex-1 grid grid-cols-1 xl:grid-cols-12 overflow-y-auto xl:overflow-hidden h-full">
+  <div class="xl:col-span-7 flex flex-col sm:flex-row relative bg-neutral-950/60 p-4 border-r border-neutral-900 overflow-visible xl:overflow-hidden min-h-0 gap-4 sm:gap-0">
+    <div id="start-lights" class="absolute top-4 left-1/2 -translate-x-1/2 hidden grid-cols-5 gap-2 sm:gap-3 bg-neutral-900/95 border-2 border-neutral-800 p-2.5 sm:p-4 rounded shadow-2xl z-30">
+      <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-red-950 border border-neutral-800 transition-colors duration-300" id="l1"></div>
+      <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-red-950 border border-neutral-800 transition-colors duration-300" id="l2"></div>
+      <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-red-950 border border-neutral-800 transition-colors duration-300" id="l3"></div>
+      <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-red-950 border border-neutral-800 transition-colors duration-300" id="l4"></div>
+      <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-red-950 border border-neutral-800 transition-colors duration-300" id="l5"></div>
+    </div>
+
+    <div id="leaderboard-wrapper" class="w-full sm:w-[210px] h-[280px] sm:h-full flex flex-col shrink-0 bg-black/95 border border-neutral-800 rounded overflow-hidden z-10 relative">
+      <div id="dynamic-stripe" class="absolute left-0 top-0 w-1 h-0 transition-all duration-500 z-20"></div>
+      <div class="bg-neutral-900 border-b border-neutral-800 py-3 flex justify-center items-center">
+        <span class="f1b text-sm text-red-600">F1</span>
+      </div>
+      <div id="flag-panel" class="h-0 overflow-hidden transition-all duration-300 flex flex-col bg-neutral-900 text-center">
+        <div class="py-1.5 text-xs font-bold uppercase tracking-widest text-black" id="f-title"></div>
+        <div class="py-1 text-[10px] font-bold text-neutral-400 bg-black/40" id="f-content"></div>
+      </div>
+      <div class="flex-grow overflow-y-auto" id="ui-grid"></div>
+    </div>
+
+    <div id="track-container" class="flex-1 flex flex-col items-center justify-center relative p-2 sm:p-4 select-none min-w-0">
+      <div class="absolute top-4 right-4 bg-neutral-900/60 border border-neutral-800/80 rounded p-2 text-[10px] font-bold text-neutral-400 z-10 hidden sm:block">📍 MONACO GP TELEMETRY</div>
+      
+      <!-- REPLACED SVG START -->
+      <svg id="monaco-svg" viewBox="0 0 666 375" class="w-full max-h-[50vh] sm:max-h-[85vh] text-neutral-800 filter drop-shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+        <style>
+          #car-layer circle {
+            r: 60px !important;
+            stroke-width: 15px !important;
+          }
+          #sector-overlay {
+            stroke-width: 60px !important;
+          }
+        </style>
+        <g transform="translate(0, 375) scale(0.1, -0.1)">
+          <path id="main-track" class="fill-neutral-700 stroke-none" d="M5099 3346 c-2 -2 -67 -9 -144 -15 -285 -24 -1032 -91 -1106 -100 -41 -4 -86 -14 -100 -21 -60 -31 -73 -85 -41 -162 28 -64 35 -114 21 -155 -10 -30 -209 -392 -423 -768 -35 -60 -98 -173 -141 -250 -88 -157 -103 -177 -160 -210 -33 -20 -678 -222 -1690 -532 -99 -30 -194 -63 -211 -74 -56 -34 -69 -100 -34 -169 24 -47 64 -70 119 -70 84 0 87 -13 34 -132 -46 -104 -48 -157 -9 -196 l26 -27 310 -3 c186 -2 310 -7 310 -13 0 -12 27 -12 32 1 2 7 222 13 632 17 l629 6 31 28 c29 26 31 32 30 96 0 37 -4 118 -8 178 -7 100 -6 115 13 167 16 41 36 70 74 103 62 56 111 82 244 128 150 53 284 71 478 64 167 -6 246 -19 380 -63 126 -42 223 -26 302 49 43 40 62 102 76 245 l12 117 30 -3 c17 -1 94 -18 173 -38 138 -34 144 -34 178 -18 62 30 82 100 69 250 -7 83 -9 88 -47 130 -22 24 -209 173 -416 332 -485 373 -503 387 -529 425 -34 48 -30 72 19 104 34 23 55 29 118 31 75 4 81 2 222 -56 80 -34 235 -105 344 -158 227 -112 249 -116 384 -74 125 38 164 63 211 131 62 92 99 167 99 203 0 78 -54 204 -147 342 -66 99 -108 139 -160 153 -36 10 -225 16 -234 7z m227 -92 c74 -35 233 -309 234 -405 0 -14 -15 -50 -33 -80 -88 -144 -83 -141 -239 -185 l-96 -27 -169 81 c-228 109 -452 208 -515 227 -120 35 -250 11 -325 -60 -45 -44 -46 -45 -41 -99 8 -92 4 -89 648 -583 393 -302 370 -277 370 -395 0 -94 -11 -128 -42 -128 -13 0 -88 16 -168 35 -80 19 -157 35 -172 35 -42 0 -78 -50 -78 -109 0 -77 -21 -213 -39 -251 -19 -41 -87 -80 -138 -80 -19 0 -78 13 -132 29 -170 51 -280 64 -474 58 -248 -8 -437 -56 -599 -154 -140 -84 -189 -166 -196 -327 -3 -58 1 -128 8 -167 7 -37 10 -78 6 -93 l-6 -26 -620 0 c-544 0 -620 2 -620 15 0 8 -7 15 -15 15 -8 0 -15 -7 -15 -15 0 -12 -14 -15 -62 -15 -35 0 -158 -3 -274 -7 -214 -6 -264 -2 -264 20 0 6 16 45 36 85 45 91 56 175 28 210 -19 23 -75 41 -128 42 -53 0 -88 59 -53 89 12 10 369 122 1132 356 718 220 772 239 820 282 39 35 74 90 233 373 88 157 208 370 267 474 208 370 218 389 218 462 0 42 -8 85 -23 125 -22 57 -22 63 -7 74 9 7 50 15 89 19 184 17 428 39 843 76 248 22 457 42 465 44 26 7 113 -5 146 -20z m-3436 -2715 c0 -7 8 -18 18 -25 16 -12 16 -13 0 -19 -10 -4 -18 -13 -18 -21 0 -20 -12 -17 -38 11 -21 21 -22 26 -8 31 9 3 16 12 16 20 0 8 7 14 15 14 8 0 15 -5 15 -11z M1370 733 c0 -24 3 -33 9 -25 7 12 4 62 -5 62 -2 0 -4 -17 -4 -37z M1433 735 c0 -22 2 -30 4 -17 2 12 2 30 0 40 -3 9 -5 -1 -4 -23z M1465 760 c3 -5 8 -10 11 -10 2 0 4 5 4 10 0 6 -5 10 -11 10 -5 0 -7 -4 -4 -10z M1560 751 c0 -25 6 -27 13 -6 4 8 2 17 -3 20 -6 4 -10 -3 -10 -14z M2762 740 c0 -19 2 -27 5 -17 2 9 2 25 0 35 -3 9 -5 1 -5 -18z M2853 735 c0 -22 2 -30 4 -17 2 12 2 30 0 40 -3 9 -5 -1 -4 -23z M3065 760 c3 -5 8 -10 11 -10 2 0 4 5 4 10 0 6 -5 10 -11 10 -5 0 -7 -4 -4 -10z M1601 747 c-1 -11 -6 -15 -12 -11 -7 4 -6 -3 2 -17 11 -20 14 -21 17 -6 2 9 1 25 -1 35 -4 16 -5 16 -6 -1z M2791 744 c0 -11 3 -14 6 -6 3 7 2 16 -1 19 -3 4 -6 -2 -5 -13z M2913 745 c-3 -9 -3 -18 -1 -21 3 -3 8 4 11 16 6 23 -1 27 -10 5z M1860 505 c0 -8 7 -15 15 -15 8 0 15 7 15 15 0 8 -7 15 -15 15 -8 0 -15 -7 -15 -15z M3573 3214 c-4 -10 0 -20 12 -26 14 -8 15 -12 4 -19 -22 -13 -3 -22 21 -9 29 16 24 64 -8 68 -14 2 -25 -3 -29 -14z m37 -4 c0 -5 -4 -10 -10 -10 -5 0 -10 5 -10 10 0 6 5 10 10 10 6 0 10 -4 10 -10z M3600 2981 c0 -6 5 -11 10 -11 6 0 10 -14 10 -32 0 -23 3 -29 11 -21 16 16 7 67 -13 71 -10 2 -18 -1 -18 -7z M3655 2971 c-10 -34 4 -63 28 -59 18 2 22 10 22 38 0 28 -4 36 -22 38 -14 2 -23 -3 -28 -17z m35 -16 c0 -14 -4 -25 -10 -25 -11 0 -14 33 -3 43 11 11 13 8 13 -18z M5676 2938 c-16 -52 -15 -67 4 -73 29 -9 39 1 38 38 -1 40 -33 66 -42 35z m24 -18 c0 -5 -4 -10 -10 -10 -5 0 -10 5 -10 10 0 6 5 10 10 10 6 0 10 -4 10 -10z m5 -30 c3 -5 -1 -10 -9 -10 -9 0 -16 5 -16 10 0 6 4 10 9 10 6 0 13 -4 16 -10z M4353 2743 c18 -5 19 -15 2 -55 -4 -10 -3 -18 2 -18 8 0 33 55 33 73 0 4 -12 6 -27 6 -19 -1 -22 -3 -10 -6z M5260 1956 c-6 -8 -10 -25 -8 -38 4 -28 42 -37 52 -13 8 21 -1 35 -22 35 -15 1 -15 2 2 15 16 12 17 15 4 15 -8 0 -21 -7 -28 -14z m30 -36 c0 -5 -7 -10 -16 -10 -8 0 -12 5 -9 10 3 6 10 10 16 10 5 0 9 -4 9 -10z M2897 1778 c9 -51 23 -57 23 -10 0 30 -4 42 -15 42 -11 0 -13 -8 -8 -32z M2950 1800 c0 -5 4 -10 9 -10 6 0 12 -15 14 -32 3 -29 4 -27 5 10 2 31 -2 42 -13 42 -8 0 -15 -4 -15 -10z M5250 1571 c0 -10 8 -22 18 -26 16 -6 16 -8 -3 -22 -19 -14 -19 -14 5 -11 33 4 40 37 9 45 -21 6 -21 7 -4 20 18 12 18 13 -3 13 -15 0 -22 -6 -22 -19z M4816 1515 c-21 -31 -20 -35 4 -35 11 0 20 -5 20 -12 0 -8 3 -9 10 -2 11 11 2 74 -10 74 -4 0 -15 -11 -24 -25z m20 -22 c-10 -10 -19 5 -10 18 6 11 8 11 12 0 2 -7 1 -15 -2 -18z M4690 1139 c12 -8 12 -12 2 -16 -10 -4 -9 -8 5 -19 17 -13 17 -13 1 -14 -20 0 -25 -20 -5 -20 22 0 34 19 29 50 -3 23 -10 30 -26 30 -17 0 -19 -2 -6 -11z M855 1060 c-3 -5 -1 -10 4 -10 6 0 11 -13 11 -30 0 -16 5 -30 10 -30 6 0 10 18 10 40 0 28 -4 40 -14 40 -8 0 -18 -4 -21 -10z M923 1063 c21 -6 22 -26 2 -43 -23 -19 -18 -30 13 -30 20 0 23 3 13 9 -12 8 -12 12 -2 25 18 22 6 46 -21 45 -17 -1 -18 -2 -5 -6z M3413 1063 c21 -6 22 -26 2 -43 -23 -19 -18 -30 13 -30 20 0 23 3 13 9 -12 8 -12 12 -2 25 18 22 6 46 -21 45 -17 -1 -18 -2 -5 -6z M1108 773 c6 -2 12 -20 12 -39 0 -21 4 -33 10 -29 6 3 10 22 10 41 0 29 -3 34 -22 33 -13 0 -17 -3 -10 -6z M1173 774 c19 -6 24 -24 6 -24 -8 0 -8 -4 0 -14 10 -11 8 -17 -6 -25 -16 -10 -15 -11 7 -9 21 3 25 8 25 38 0 30 -3 35 -25 37 -14 1 -18 0 -7 -3z M3258 548 c6 -7 12 -26 15 -43 3 -24 4 -22 6 13 1 33 -3 42 -15 42 -12 0 -14 -3 -6 -12z M1018 518 c6 -7 12 -26 15 -43 3 -24 4 -22 6 13 1 33 -3 42 -15 42 -12 0 -14 -3 -6 -12z M1072 510 c-16 -26 -15 -40 2 -40 8 0 17 -6 19 -12 10 -23 24 10 19 42 -5 35 -22 39 -40 10z M2008 400 c2 -16 6 -30 8 -30 2 0 4 14 4 30 0 17 -4 30 -8 30 -5 0 -7 -13 -4 -30z M2052 405 c-7 -14 -12 -27 -12 -28 0 -1 11 -2 25 -2 28 0 29 2 12 33 l-13 23 -12 -26z M2180 415 c0 -8 2 -15 4 -15 2 0 6 7 10 15 3 8 1 15 -4 15 -6 0 -10 -7 -10 -15z M2140 412 c0 -7 -7 -12 -15 -12 -8 0 -15 -8 -14 -17 0 -11 3 -13 6 -5 2 6 9 10 14 6 11 -6 25 24 15 33 -3 4 -6 1 -6 -5z M1940 408 c0 -2 9 -11 20 -21 11 -9 20 -13 20 -7 0 5 -9 14 -20 20 -11 6 -20 9 -20 8z M2230 390 c0 -23 12 -25 42 -9 17 9 18 13 7 20 -25 16 -49 10 -49 -11z" />
+          <path id="sector-overlay" class="fill-none stroke-transparent stroke-linejoin-round stroke-linecap-round transition-all duration-300" d="M5099 3346 c-2 -2 -67 -9 -144 -15 -285 -24 -1032 -91 -1106 -100 -41 -4 -86 -14 -100 -21 -60 -31 -73 -85 -41 -162 28 -64 35 -114 21 -155 -10 -30 -209 -392 -423 -768 -35 -60 -98 -173 -141 -250 -88 -157 -103 -177 -160 -210 -33 -20 -678 -222 -1690 -532 -99 -30 -194 -63 -211 -74 -56 -34 -69 -100 -34 -169 24 -47 64 -70 119 -70 84 0 87 -13 34 -132 -46 -104 -48 -157 -9 -196 l26 -27 310 -3 c186 -2 310 -7 310 -13 0 -12 27 -12 32 1 2 7 222 13 632 17 l629 6 31 28 c29 26 31 32 30 96 0 37 -4 118 -8 178 -7 100 -6 115 13 167 16 41 36 70 74 103 62 56 111 82 244 128 150 53 284 71 478 64 167 -6 246 -19 380 -63 126 -42 223 -26 302 49 43 40 62 102 76 245 l12 117 30 -3 c17 -1 94 -18 173 -38 138 -34 144 -34 178 -18 62 30 82 100 69 250 -7 83 -9 88 -47 130 -22 24 -209 173 -416 332 -485 373 -503 387 -529 425 -34 48 -30 72 19 104 34 23 55 29 118 31 75 4 81 2 222 -56 80 -34 235 -105 344 -158 227 -112 249 -116 384 -74 125 38 164 63 211 131 62 92 99 167 99 203 0 78 -54 204 -147 342 -66 99 -108 139 -160 153 -36 10 -225 16 -234 7z" />
+          <g id="car-layer"></g>
+        </g>
+      </svg>
+      <!-- REPLACED SVG END -->
+
+      <div id="penalty-overlay" class="absolute bottom-6 left-1/2 -translate-x-1/2 w-[92%] sm:w-full max-w-2xl bg-black/95 border-2 border-red-600 rounded-lg p-3 sm:p-4 flex items-center justify-between shadow-2xl z-40 hidden">
+        <div class="flex items-center space-x-3 sm:space-x-4">
+          <div class="bg-red-600/15 p-2 rounded"><span class="text-red-500 font-black text-2xl sm:text-3xl">⚠️</span></div>
+          <div>
+            <span class="text-red-600 f1b text-xs tracking-widest block" id="po-title">INCIDENT</span>
+            <div class="flex items-baseline space-x-1">
+              <span class="text-white text-base sm:text-lg" id="po-name">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="xl:col-span-5 flex flex-col h-auto xl:h-full bg-neutral-900/40 overflow-visible xl:overflow-y-auto p-4 space-y-4">
+    <div class="bg-black/85 border border-neutral-900 rounded p-4">
+      <div class="flex justify-between items-center mb-2">
+        <span class="f1b text-xs tracking-widest text-neutral-400 uppercase">LIVE TELEMETRY (22 DRIVERS)</span>
+        <span class="text-[9px] bg-red-600/10 border border-red-600/30 text-red-500 px-2 py-0.5 rounded font-bold uppercase">LIVE</span>
+      </div>
+      <div class="overflow-x-auto max-h-[190px]">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-neutral-800 text-[10px] text-neutral-500 uppercase font-bold tracking-wider">
+              <th class="pb-1">POS</th><th class="pb-1">DRIVER</th><th class="pb-1 text-center">TIRE</th><th class="pb-1 text-right">GAP</th><th class="pb-1 text-right">WEAR</th><th class="pb-1 text-right">STATUS</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body" class="text-xs font-bold tracking-wide"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-black/85 border border-neutral-900 rounded p-4 flex flex-col h-[220px]">
+      <div class="flex justify-between items-center mb-2">
+        <span class="f1b text-xs tracking-widest text-neutral-400 uppercase">RADIO & STRATEGY ROOM</span>
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+      </div>
+      <div id="chat-messages" class="flex-1 overflow-y-auto space-y-2 p-2 bg-neutral-950/80 rounded border border-neutral-900 text-xs font-mono"></div>
+      <div class="mt-2 flex space-x-2">
+        <input type="text" id="chat-input" placeholder="Radio message or committee directive..." class="flex-1 bg-black border border-neutral-800 rounded px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-red-600 text-neutral-100">
+        <button onclick="sendChatMessage()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded text-xs uppercase tracking-wider">SEND</button>
+      </div>
+    </div>
+
+    <div id="workspace-container" class="bg-black/85 border border-neutral-900 rounded p-4 flex-1">
+      <div class="text-center py-8 text-neutral-500 font-bold uppercase tracking-widest text-xs">Please connect to the pit wall with an access code...</div>
+    </div>
+  </div>
+</main>
+
+<footer class="bg-neutral-950 border-t border-neutral-900 py-3 px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center text-[10px] text-neutral-500 uppercase font-bold tracking-wider shrink-0 gap-1 sm:gap-0">
+  <div>F1 2026 MUN COGNITIVE SYSTEMS &copy; COMMITTEE ADVISOR</div>
+  <div class="flex items-center space-x-2"><span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span>SIMULATION ACTIVE</span></div>
+</footer>
+
+<div id="custom-modal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 hidden">
+  <div class="max-w-md w-full bg-neutral-950 border-2 border-yellow-500 rounded-lg p-6 text-center shadow-2xl relative">
+    <span id="modal-title" class="f1b text-lg tracking-widest text-yellow-500 uppercase block mb-3">RACE INCIDENT</span>
+    <div class="max-h-[300px] overflow-y-auto text-left mb-6 pr-1 font-mono text-xs"><p id="modal-body" class="text-neutral-200 leading-relaxed"></p></div>
+    <button onclick="closeModal()" class="w-full bg-neutral-900 hover:bg-neutral-800 border border-yellow-500/30 text-white font-bold py-2 px-4 rounded transition-all uppercase text-xs tracking-wider">UNDERSTOOD</button>
+  </div>
+</div>
+
+<script>
+// ================= DRIVERS =================
+const drivers = [
+  {abbr:'ANT', color:'#27f4d2', tire:'S', team:'MER', fname:'Kimi', lname:'ANTONELLI', number: 12, skill: 1.10},
+  {abbr:'HAM', color:'#e80020', tire:'S', team:'FER', fname:'Lewis', lname:'HAMILTON', number: 44, skill: 1.06},
+  {abbr:'RUS', color:'#27f4d2', tire:'H', team:'MER', fname:'George', lname:'RUSSELL', number: 63, skill: 1.05},
+  {abbr:'LEC', color:'#e80020', tire:'S', team:'FER', fname:'Charles', lname:'LECLERC', number: 16, skill: 1.04},
+  {abbr:'NOR', color:'#ff8000', tire:'M', team:'MCL', fname:'Lando', lname:'NORRIS', number: 1, skill: 1.03},
+  {abbr:'VER', color:'#3671C6', tire:'H', team:'RBR', fname:'Max', lname:'VERSTAPPEN', number: 3, skill: 1.02},
+  {abbr:'PIA', color:'#ff8000', tire:'M', team:'MCL', fname:'Oscar', lname:'PIASTRI', number: 81, skill: 1.00},
+  {abbr:'HAD', color:'#3671C6', tire:'S', team:'RBR', fname:'Isack', lname:'HADJAR', number: 6, skill: 0.98},
+  {abbr:'LAW', color:'#6692ff', tire:'M', team:'VCARB', fname:'Liam', lname:'LAWSON', number: 30, skill: 0.97},
+  {abbr:'GAS', color:'#0093cc', tire:'S', team:'ALP', fname:'Pierre', lname:'GASLY', number: 10, skill: 0.97},
+  {abbr:'LIN', color:'#6692ff', tire:'S', team:'VCARB', fname:'Arvid', lname:'LINDBLAD', number: 41, skill: 0.95},
+  {abbr:'COL', color:'#0093cc', tire:'M', team:'ALP', fname:'Franco', lname:'COLAPINTO', number: 43, skill: 0.95},
+  {abbr:'BEA', color:'#b6babd', tire:'H', team:'HAS', fname:'Oliver', lname:'BEARMAN', number: 87, skill: 0.94},
+  {abbr:'BOR', color:'#52e252', tire:'S', team:'AUD', fname:'Gabriel', lname:'BORTOLETO', number: 5, skill: 0.93},
+  {abbr:'SAI', color:'#00a0de', tire:'H', team:'WIL', fname:'Carlos', lname:'SAINZ', number: 55, skill: 0.93},
+  {abbr:'ALB', color:'#00a0de', tire:'H', team:'WIL', fname:'Alexander', lname:'ALBON', number: 23, skill: 0.92},
+  {abbr:'OCO', color:'#b6babd', tire:'M', team:'HAS', fname:'Esteban', lname:'OCON', number: 31, skill: 0.91},
+  {abbr:'HUL', color:'#52e252', tire:'H', team:'AUD', fname:'Nico', lname:'HULKENBERG', number: 27, skill: 0.91},
+  {abbr:'ALO', color:'#229971', tire:'M', team:'AMR', fname:'Fernando', lname:'ALONSO', number: 14, skill: 0.90},
+  {abbr:'STR', color:'#229971', tire:'S', team:'AMR', fname:'Lance', lname:'STROLL', number: 18, skill: 0.86},
+  {abbr:'BOT', color:'#1e3d59', tire:'H', team:'CAD', fname:'Valtteri', lname:'BOTTAS', number: 77, skill: 0.88},
+  {abbr:'PER', color:'#1e3d59', tire:'M', team:'CAD', fname:'Sergio', lname:'PEREZ', number: 11, skill: 0.88}
+];
+
+const TEAMS = {
+  FER:{name:'Scuderia Ferrari HP',color:'#e80020'}, RBR:{name:'Red Bull Racing',color:'#3671C6'},
+  MER:{name:'Mercedes AMG F1',color:'#27F4D2'}, MCL:{name:'McLaren Racing',color:'#FF8000'},
+  AMR:{name:'Aston Martin F1',color:'#229971'}, ALP:{name:'Alpine F1 Team',color:'#0093CC'},
+  WIL:{name:'Williams Racing',color:'#00a0de'}, VCARB:{name:'Racing Bulls F1',color:'#6692ff'},
+  AUD:{name:'Audi F1 (Sauber)',color:'#52e252'}, HAS:{name:'Haas F1 Team',color:'#B6BABD'},CAD:{name:"Cadillac F1 Team",color:"#aaaaad"}
+};
+
+// Team logo files. Place a "source" folder next to this HTML file containing
+// these images (transparent PNGs work best), e.g.:
+//   source/ferrari.png, source/mercedes.png, source/redbul.png,
+//   source/mclaren.png, source/astonmartin.png, source/alpine.png,
+//   source/williams.png, source/racingbulls.png, source/audi.png, source/haas.png
+const TEAM_LOGOS = {
+  FER: 'sources/2026ferrarilogowhite.avif',
+  RBR: 'sources/2026redbullracinglogowhite.avif',
+  MER: 'sources/2026mercedeslogowhite.avif',
+  MCL: 'sources/2026mclarenlogowhite.avif',
+  AMR: 'sources/2026astonmartinlogowhite.avif',
+  ALP: 'sources/2026alpinelogowhite.avif',
+  WIL: 'sources/2026williamslogowhite.avif',
+  VCARB: 'sources/2026racingbullslogowhite.avif',
+  AUD: 'sources/2026audilogowhite.avif',
+  HAS: 'sources/2026haasf1teamlogowhite.avif',
+  CAD: 'sources/2026cadillaclogowhite.avif'
+};
+
+function teamLogoTag(d, sizeClass){
+  const src = TEAM_LOGOS[d.team] || '';
+  const cls = 'team-logo ' + (sizeClass||'');
+  return `<img src="${src}" class="${cls}" alt="${d.team}" onerror="this.style.visibility='hidden'">`;
+}
+
+const STEWARDS = {GARRY:'Garry Connelly',DEREK:'Derek Warwick',JOSE:'José Abed',SILVIA:'Silvia Bellot'};
+
+// Tire compound behaviour: soft is fastest but wears out quickest,
+// hard is slowest but lasts the longest, medium sits in between.
+const TIRE_DATA = {
+  S: { speedMult: 1.045, wearRate: 0.60 },
+  M: { speedMult: 1.000, wearRate: 0.35 },
+  H: { speedMult: 0.965, wearRate: 0.20 }
+};
+
+// ================= STATE =================
+const LAP_SECONDS = 72;        
+const TICK_MS = 150;          
+const TICKS_PER_LAP = LAP_SECONDS * 1000 / TICK_MS; 
+const UNIT = 1 / TICKS_PER_LAP;
+const PIT_STOP_MIN_MS = 19000;
+const PIT_STOP_MAX_MS = 20000;
+
+// Positions the grid slightly AFTER the start/finish line rather than right
+// before it. This means that when the race starts, drivers must complete a
+// full lap before the lap counter increases; otherwise, starting too close
+// to the line caused the lap counter to increment incorrectly right at the
+// start of the race.
+function gridStartProgress(i, total){
+  const spread = 0.05; // pack all grid cars into the first 5% of the lap
+  const denom = Math.max(1, total - 1);
+  return 0.01 + ((total - 1 - i) / denom) * spread;
+}
+
+function freshDrivers(){
+  return drivers.map((d,i)=>{
+    const startProgress = gridStartProgress(i, drivers.length);
+    return {...d, progress: startProgress, totalDistance: startProgress, tyreWear: Math.random()*5, status:'OK', isDSQ:false, penalty:null, penaltySeconds:0, hidden:false, lastCrossTick:0};
+  });
+}
+
+let state = {
+  lap: 1, maxLaps: 78, flagStatus: 'NORMAL', yellowSector: null,
+  paused: false,
+  gridConfirmed: false,
+  tickCount: 0,
+  fastestLap: {abbr:null, timeSec:null},
+  raceFinished: false,
+  drivers: freshDrivers(),
+  logs: [{time:getTimestamp(), sender:'SYSTEM', message:'Monaco GP Race Control System initialized. Select one of the roles.'}],
+  stewardIncidents: [],
+  _v: 0
+};
+
+let currentRole=null, currentSubRole=null, selectedDriver=null;
+let overlay, pathLen, lightInterval=null, tickInterval=null;
+
+function curvatureAt(p){
+  const wave = Math.sin(p*Math.PI*6) * 0.5 + Math.sin(p*Math.PI*2)*0.3;
+  return 1 + wave*0.45;
+}
+
+function tireClassFor(t){
+  return t==='S' ? 'soft' : (t==='M' ? 'medium' : 'hard');
+}
+
+function raceSort(a,b){
+  return (b.totalDistance||b.progress||0) - (a.totalDistance||a.progress||0);
+}
+
+function driverBadgesFor(d){
+  let out = '';
+  if(d.status==='PIT') out += '<span class="pit-badge" title="In the pits">P</span>';
+  if(d.penaltySeconds) out += `<span class="penalty-badge" title="Time penalty applied">+${d.penaltySeconds}s</span>`;
+  if(state.fastestLap && state.fastestLap.abbr===d.abbr) out += '<span class="fastest-lap-badge" title="Fastest lap">⏱</span>';
+  if(state.raceFinished && !d.isDSQ && !d.status.startsWith('DNF')) out += '<span class="checkered-badge" title="Finished"></span>';
+  return out;
+}
+
+function render(){
+  const flagPill = document.getElementById('status-flag-pill');
+  document.getElementById('lap-counter').innerText = `${state.lap} / ${state.maxLaps}`;
+  flagPill.className = "px-3 sm:px-4 py-1 rounded font-bold tracking-widest text-[10px] sm:text-xs uppercase transition-all duration-300 ";
+  const f = state.flagStatus;
+  if(f==='GREEN'||f==='NORMAL'){flagPill.className+=' bg-emerald-600 text-white';flagPill.innerText='GREEN FLAG / RACE LIVE';}
+  else if(f==='YELLOW'){flagPill.className+=' bg-amber-400 text-black blink-y';flagPill.innerText=`YELLOW FLAG - SECTOR ${state.yellowSector||'GENERAL'}`;}
+  else if(f==='VSC'){flagPill.className+=' bg-amber-500 text-black';flagPill.innerText='VIRTUAL SAFETY CAR';}
+  else if(f==='SC'){flagPill.className+=' bg-amber-600 text-black blink-y';flagPill.innerText='SAFETY CAR DEPLOYED';}
+  else if(f==='RED'){flagPill.className+=' bg-red-600 text-white blink-r';flagPill.innerText= state.raceFinished ? 'CHECKERED FLAG - RACE FINISHED' : 'RED FLAG - SESSION SUSPENDED';}
+  else if(f==='STARTING'){flagPill.className+=' bg-neutral-800 text-white';flagPill.innerText='RACE START SEQUENCE';}
+  if(state.paused){ flagPill.innerText += ' (PAUSED)'; }
+
+  updateFlagPanel();
+  updateTVLeaderboard();
+  updateTelemetryTable();
+  updateRadioLog();
+  updateCarsOnTrack();
+  syncWorkspace();
+  updateTrackMapAnimation();
+  updateSyncBadge();
+}
+
+function updateSyncBadge(){
+  const el=document.getElementById('sync-status');
+  if(!el) return;
+  if(typeof syncDisabled !== 'undefined' && syncDisabled){
+    el.innerText = '⚠️ LOCAL MODE (no sharing)';
+    el.className = 'text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-amber-500';
+    return;
+  }
+  const role = isLeader ? 'BROADCAST SOURCE' : 'VIEWER';
+  el.innerText = `🔗 SYNCED (${role})`;
+  el.className = 'text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ' + (isLeader ? 'text-emerald-500' : 'text-sky-400');
+}
+
+function updateTrackMapAnimation() {
+  const mapOverlay = document.getElementById('sector-overlay');
+  if(!mapOverlay || !pathLen) return;
+
+  mapOverlay.className.baseVal = "fill-none stroke-linejoin-round stroke-linecap-round transition-all duration-300";
+  mapOverlay.style.strokeDasharray = "none";
+  mapOverlay.style.strokeDashoffset = "0";
+  mapOverlay.style.stroke = "transparent";
+
+  const f = state.flagStatus;
+  
+  if (f === 'RED') {
+    mapOverlay.classList.add('track-red-flag');
+  } else if (f === 'SC') {
+    mapOverlay.classList.add('track-sc');
+  } else if (f === 'VSC') {
+    mapOverlay.classList.add('track-vsc');
+  } else if (f === 'YELLOW' && state.yellowSector) {
+    mapOverlay.classList.add('track-sector-yellow');
+    const third = pathLen / 3;
+    mapOverlay.style.strokeDasharray = `${third} ${pathLen}`;
+    if (state.yellowSector === 1) mapOverlay.style.strokeDashoffset = "0";
+    if (state.yellowSector === 2) mapOverlay.style.strokeDashoffset = `-${third}`;
+    if (state.yellowSector === 3) mapOverlay.style.strokeDashoffset = `-${third * 2}`;
+  }
+}
+
+function updateFlagPanel(){
+  const stripe=document.getElementById('dynamic-stripe'), panel=document.getElementById('flag-panel');
+  const title=document.getElementById('f-title'), cont=document.getElementById('f-content');
+  panel.classList.remove('pulse2');
+  if(state.flagStatus==='NORMAL'){stripe.style.height='0';stripe.style.opacity='0';panel.style.height='0';return;}
+  stripe.style.opacity='1'; stripe.style.height='140px'; panel.style.height='75px';
+  const f=state.flagStatus;
+  const map = {
+    YELLOW:['YELLOW FLAG','var(--safety-yellow)','#000',`SECTOR ${state.yellowSector||'GENERAL'}`],
+    GREEN:['GREEN FLAG','var(--safety-green)','#fff','TRACK CLEAR'],
+    VSC:['VSC ACTIVE','var(--safety-yellow)','#000','VIRTUAL SAFETY CAR'],
+    SC:['SAFETY CAR','var(--safety-yellow)','#000','SAFETY CAR DEPLOYED'],
+    RED:['RED FLAG','var(--f1-red)','#fff', state.raceFinished ? 'RACE FINISHED' : 'SESSION SUSPENDED']
+  };
+  if(map[f]){
+    title.innerText=map[f][0]; title.style.background=map[f][1]; title.style.color=map[f][2]; cont.innerText=map[f][3];
+    stripe.style.background=map[f][1];
+    if(f==='VSC'||f==='RED') panel.classList.add('pulse2');
+  }
+}
+
+function gapTextFor(sorted, idx){
+  const d = sorted[idx];
+  if(d.isDSQ) return 'DSQ';
+  if(d.status==='DNF_CRASH') return 'DNF';
+  if(d.status==='DNF_ENGINE') return 'DNF';
+  if(d.status==='PIT') return 'PIT';
+  if(idx===0) return 'LEADER';
+  const leaderTD = sorted[0].totalDistance || 0;
+  const gapSeconds = Math.max(0, (leaderTD - (d.totalDistance||0)) * LAP_SECONDS);
+  return `+${gapSeconds.toFixed(3)}s`;
+}
+
+function updateTVLeaderboard(){
+  const grid=document.getElementById('ui-grid'); grid.innerHTML='';
+  const sorted=[...state.drivers].sort(raceSort);
+  sorted.forEach((d,i)=>{
+    const row=document.createElement('div');
+    row.className='flex items-center h-[26px] bg-neutral-900/60 border-b border-neutral-950 text-xs px-2 cursor-pointer transition-all '+
+      (d.isDSQ?' opacity-30':'')+(selectedDriver===d.abbr?' bg-neutral-800 border-l-2 border-red-600':' hover:bg-neutral-850');
+    row.onclick=()=>{selectedDriver=d.abbr; render();};
+    const gapText = gapTextFor(sorted, i);
+    let tireBadge=`<div class="f1-tire tel-font ${tireClassFor(d.tire)}">${d.tire}</div>`;
+    if(d.isDSQ) tireBadge='<div class="text-[9px] text-red-500 font-bold tel-font">OUT</div>';
+    else if(d.status==='DNF_CRASH') tireBadge='<div class="text-[9px] text-red-500 font-bold tel-font">CRASH</div>';
+    else if(d.status==='DNF_ENGINE') tireBadge='<div class="text-[9px] text-amber-500 font-bold tel-font">ENGINE</div>';
+    const badges = driverBadgesFor(d);
+    row.innerHTML=`<div class="w-6 text-center font-black pos-font">${i+1}</div>
+      <div class="w-4 mx-2 flex items-center justify-center">${teamLogoTag(d)}</div>
+      <div class="font-bold flex-1 text-white driver-font">${d.abbr}</div>
+      <div class="flex items-center space-x-1 mr-1">${badges}</div>
+      <div class="text-[10px] text-neutral-400 tel-font w-16 text-right pr-2">${gapText}</div>${tireBadge}`;
+    grid.appendChild(row);
+  });
+}
+
+function updateTelemetryTable(){
+  const tb=document.getElementById('leaderboard-body'); tb.innerHTML='';
+  const sorted=[...state.drivers].sort(raceSort);
+  sorted.forEach((d,idx)=>{
+    let statusMarkup='<span class="text-emerald-500 font-bold tel-font">OK</span>';
+    if(d.isDSQ) statusMarkup='<span class="text-red-600 line-through tel-font">DSQ</span>';
+    else if(d.status==='DNF_CRASH') statusMarkup='<span class="text-red-500 animate-pulse tel-font">DNF (CRASH)</span>';
+    else if(d.status==='DNF_ENGINE') statusMarkup='<span class="text-amber-500 tel-font">DNF (ENGINE)</span>';
+    else if(d.status==='PIT') statusMarkup='<span class="text-sky-400 animate-pulse tel-font">PIT</span>';
+    const gapText = gapTextFor(sorted, idx);
+    const badges = driverBadgesFor(d);
+    const tr=document.createElement('tr');
+    tr.className='border-b border-neutral-900/60';
+    tr.innerHTML=`<td class="py-1 font-bold text-neutral-500 w-8 pos-font">${idx+1}</td>
+      <td class="py-1"><div class="flex items-center space-x-1.5">${teamLogoTag(d)}<span class="text-neutral-200 driver-font">${d.fname[0]}. ${d.lname}</span><span class="flex items-center space-x-1">${badges}</span></div></td>
+      <td class="py-1 text-center"><div class="f1-tire tel-font ${tireClassFor(d.tire)} mx-auto">${d.tire}</div></td>
+      <td class="py-1 text-right text-neutral-400 tel-font text-[10px]">${gapText}</td>
+      <td class="py-1 text-right text-neutral-400 tel-font">${Math.floor(d.tyreWear||0)}%</td>
+      <td class="py-1 text-right">${statusMarkup}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function updateRadioLog(){
+  const box=document.getElementById('chat-messages'); box.innerHTML='';
+  state.logs.slice(-40).forEach(log=>{
+    const isSystem=log.sender==='SYSTEM';
+    const div=document.createElement('div');
+    div.className='py-1 border-b border-neutral-900/40 flex flex-col';
+    let senderMarkup=`<span class="text-red-500 font-bold">[${log.sender}]</span>`;
+    if(isSystem) senderMarkup='<span class="text-neutral-500 font-bold">[SYSTEM]</span>';
+    div.innerHTML=`<div class="flex justify-between items-center text-[9px] text-neutral-600"><span>${senderMarkup}</span><span>${log.time}</span></div>
+      <p class="text-neutral-300 mt-0.5 text-xs font-normal leading-relaxed">${log.message}</p>`;
+    box.appendChild(div);
+  });
+  box.scrollTop=box.scrollHeight;
+}
+
+function updateCarsOnTrack(){
+  state.drivers.forEach(d=>{
+    const el=document.getElementById('car-'+d.abbr);
+    if(!el || d.isDSQ || d.hidden) { 
+      if(el) el.style.display='none'; 
+      return; 
+    }
+    el.style.display='block';
+    const pt=overlay.getPointAtLength(d.progress*pathLen);
+    el.setAttribute('cx',pt.x); el.setAttribute('cy',pt.y);
+    el.classList.toggle('pit-frozen', d.status==='PIT');
+  });
+}
+
+function initCars(){
+  const layer=document.getElementById('car-layer'); layer.innerHTML='';
+  state.drivers.forEach(d=>{
+    const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('id','car-'+d.abbr); c.setAttribute('r','6');
+    c.setAttribute('fill',d.color); c.setAttribute('stroke','#000'); c.setAttribute('stroke-width','1.5');
+    c.style.cursor='pointer';
+    c.onclick=()=>{selectedDriver=d.abbr; render();};
+    layer.appendChild(c);
+  });
+}
+
+// ================= LOGIN =================
+function handleLogin(){
+  const v=document.getElementById('access-code-input').value.trim().toUpperCase();
+  if(v==='RUI-RD'){currentRole='director';currentSubRole='Rui Marques';}
+  else if(v==='CHAIR'){currentRole='chair';currentSubRole='Chair/USG';}
+  else if(v==='PRO-TV'){currentRole='tv';currentSubRole='Live Broadcast';}
+  else if(STEWARDS[v.replace('STW-','')]){currentRole='steward';currentSubRole=STEWARDS[v.replace('STW-','')];}
+  else if(TEAMS[v.replace('-TP','')]){currentRole='team_principal';currentSubRole=v.replace('-TP','');}
+  else { showModal('ERROR','Unauthorized access code. Please check the code guide.','border-red-600','text-red-500'); return; }
+
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('role-badge').innerText=`${currentRole.toUpperCase()} : ${currentSubRole}`;
+  renderRoleWorkspace();
+  state.logs.push({time:getTimestamp(),sender:'SYSTEM',message:`🟢 ${currentSubRole} connected to the system.`});
+  render();
+  pushState();
+}
+function logout(){
+  state.logs.push({time:getTimestamp(),sender:'SYSTEM',message:`🔴 ${currentSubRole} disconnected.`});
+  pushState();
+  currentRole=null; currentSubRole=null;
+  document.getElementById('login-screen').classList.remove('hidden');
+  render();
+}
+function sendChatMessage(){
+  const input=document.getElementById('chat-input');
+  const text=input.value.trim(); if(!text) return;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole||'ANONYMOUS',message:text});
+  input.value=''; render();
+  pushState();
+}
+
+// ================= ROLE WORKSPACES =================
+function renderRoleWorkspace(){
+  const c=document.getElementById('workspace-container');
+  if(currentRole==='chair') return renderChairWorkspace(c);
+  if(currentRole==='director') return renderDirectorWorkspace(c);
+  if(currentRole==='steward') return renderStewardWorkspace(c);
+  if(currentRole==='team_principal') return renderTPWorkspace(c);
+  if(currentRole==='tv') return renderTVWorkspace(c);
+}
+
+function activeDriverOptions(selected){
+  return state.drivers.filter(d=>!d.isDSQ && !d.status.startsWith('DNF') && !d.hidden)
+    .sort(raceSort)
+    .map((d,i)=>`<option value="${d.abbr}" ${d.abbr===selected?'selected':''}>${i+1}. ${d.fname} ${d.lname} (${d.abbr})</option>`).join('');
+}
+
+function renderChairWorkspace(container){
+  container.innerHTML = `
+    <div class="flex flex-col h-full space-y-3 overflow-y-auto">
+      <div class="flex justify-between items-center border-b border-neutral-800 pb-2">
+        <h3 class="f1b text-sm tracking-widest text-yellow-500 uppercase">CHAIR / USG CONTROL PANEL</h3>
+      </div>
+
+      <div class="border border-yellow-600/30 p-2.5 rounded bg-yellow-950/10 space-y-2">
+        <span class="text-[10px] text-yellow-500 font-bold uppercase tracking-wider block">🏁 RACE SETTINGS</span>
+        <div class="flex items-center space-x-2">
+          <label class="text-[10px] text-neutral-400 font-bold uppercase whitespace-nowrap">Total Lap Count:</label>
+          <input type="number" id="chair-lap-count-input" min="1" max="200" step="1" value="${state.maxLaps}" class="flex-1 bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px] text-center font-bold">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="applyLapCountOnly()" class="bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-1.5 rounded text-[10px] uppercase tracking-wider">UPDATE LAP COUNT ONLY</button>
+          <button onclick="resetSimulation()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-1.5 rounded text-[10px] uppercase tracking-wider">🔄 RESTART RACE FROM SCRATCH</button>
+        </div>
+        <p class="text-[9px] text-neutral-600 leading-snug">"Update lap count only": changes the target lap count without affecting the race. "Restart race from scratch": returns all drivers to the starting grid, resets the lap counter to 1, and restarts the race with the lap count entered above.</p>
+      </div>
+
+      <div class="border border-sky-600/30 p-2.5 rounded bg-sky-950/10 space-y-2">
+        <span class="text-[10px] text-sky-400 font-bold uppercase tracking-wider block">🏳️ STARTING GRID</span>
+        <p class="text-[9px] text-neutral-500 leading-snug">Use the MANUAL ORDER EDITING list below to arrange the starting grid, then confirm it. Start lights can only be shown once the grid has been confirmed.</p>
+        <button onclick="confirmStartingGrid()" class="w-full font-bold py-1.5 rounded text-[10px] uppercase tracking-wider ${state.gridConfirmed ? 'bg-emerald-700 hover:bg-emerald-600 text-white' : 'bg-sky-700 hover:bg-sky-600 text-white'}">${state.gridConfirmed ? '✅ STARTING GRID CONFIRMED (RE-CONFIRM)' : '✅ CONFIRM STARTING GRID'}</button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="showLights()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">🚦 START LIGHTS</button>
+        <button onclick="extinguishLightsAndStart()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">🏁 EXTINGUISH START</button>
+        <button id="chair-pause-btn" onclick="toggleRacePause()" class="col-span-2 bg-amber-600 hover:bg-amber-700 text-black font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">⏸ PAUSE RACE</button>
+        <button onclick="changeTrackFlag('GREEN')" class="bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">🟢 GREEN</button>
+        <button onclick="changeTrackFlag('VSC')" class="bg-amber-500 hover:bg-amber-600 text-black font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">⏱️ VSC</button>
+        <button onclick="changeTrackFlag('SC')" class="bg-amber-600 hover:bg-amber-700 text-black font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">🚓 SAFETY CAR</button>
+        <button onclick="changeTrackFlag('RED')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">🔴 RED FLAG</button>
+      </div>
+
+      <div class="border border-neutral-800 p-2.5 rounded bg-black/40">
+        <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block mb-1.5">MANUAL ORDER EDITING</span>
+        <div id="chair-order-list" class="space-y-1 max-h-[180px] overflow-y-auto pr-1"></div>
+      </div>
+
+      <div class="border border-neutral-800 p-2.5 rounded bg-black/40 space-y-2">
+        <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block">TRIGGER OVERTAKE (BETWEEN TWO CARS)</span>
+        <div class="grid grid-cols-2 gap-2">
+          <select id="chair-overtake-front" class="bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]"></select>
+          <select id="chair-overtake-back" class="bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]"></select>
+        </div>
+        <textarea id="chair-overtake-text" rows="2" placeholder="Write the overtake description yourself (radio announcement)..." class="w-full bg-black border border-neutral-800 text-white px-2 py-1.5 rounded text-[11px] focus:outline-none"></textarea>
+        <button onclick="chairForceOvertake()" class="w-full bg-sky-700 hover:bg-sky-600 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">APPLY OVERTAKE</button>
+      </div>
+
+      <div class="border border-neutral-800 p-2.5 rounded bg-black/40 space-y-2">
+        <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block">TRIGGER CRASH / FAILURE</span>
+        <p class="text-[9px] text-neutral-600 leading-snug">Note: Triggering a crash does not automatically change the flag status. If needed, set the flag separately using the buttons above.</p>
+        <select id="chair-crash-driver" class="w-full bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]"></select>
+        <textarea id="chair-crash-text" rows="3" placeholder="Write the crash / failure description yourself (radio announcement)..." class="w-full bg-black border border-neutral-800 text-white px-2 py-1.5 rounded text-[11px] focus:outline-none"></textarea>
+        <select id="chair-crash-type" class="w-full bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]">
+          <option value="DNF_CRASH">Crash (DNF)</option>
+          <option value="DNF_ENGINE">Engine Failure (DNF)</option>
+          <option value="PIT">Enters Pit with Damage</option>
+        </select>
+        <button onclick="chairTriggerCrash()" class="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-1.5 rounded text-[11px] uppercase tracking-wider">APPLY INCIDENT</button>
+      </div>
+    </div>
+  `;
+  populateChairSelectors();
+}
+
+let _lastDriverOptionsSignature = null;
+
+function populateChairSelectors(){
+  const front=document.getElementById('chair-overtake-front');
+  const back=document.getElementById('chair-overtake-back');
+  const crash=document.getElementById('chair-crash-driver');
+  const opts = activeDriverOptions();
+
+  // Since the race re-renders every tick (150ms), rebuilding these lists
+  // every time was resetting the user's just-made selection back to the
+  // top of the list on every render. Now we: (1) never touch the DOM if the
+  // list genuinely hasn't changed, and (2) if it has, restore the user's
+  // previous selection when it's still valid, so the choice persists.
+  if(opts !== _lastDriverOptionsSignature){
+    _lastDriverOptionsSignature = opts;
+    [front, back, crash].forEach(sel=>{
+      if(!sel) return;
+      const prevValue = sel.value;
+      sel.innerHTML = opts;
+      if(prevValue && sel.querySelector(`option[value="${prevValue}"]`)){
+        sel.value = prevValue;
+      }
+    });
+  }
+
+  renderChairOrderList();
+  const lapInput=document.getElementById('chair-lap-count-input');
+  if(lapInput && document.activeElement !== lapInput){
+    lapInput.value = state.maxLaps;
+  }
+  const pauseBtn=document.getElementById('chair-pause-btn');
+  if(pauseBtn){
+    pauseBtn.innerText = state.paused ? '▶ RESUME RACE' : '⏸ PAUSE RACE';
+    pauseBtn.className = 'col-span-2 font-bold py-1.5 rounded text-[11px] uppercase tracking-wider ' +
+      (state.paused ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-amber-600 hover:bg-amber-700 text-black');
+  }
+  const gridBtn = container_gridBtn();
+  if(gridBtn){
+    gridBtn.innerText = state.gridConfirmed ? '✅ STARTING GRID CONFIRMED (RE-CONFIRM)' : '✅ CONFIRM STARTING GRID';
+    gridBtn.className = 'w-full font-bold py-1.5 rounded text-[10px] uppercase tracking-wider ' + (state.gridConfirmed ? 'bg-emerald-700 hover:bg-emerald-600 text-white' : 'bg-sky-700 hover:bg-sky-600 text-white');
+  }
+}
+function container_gridBtn(){
+  // the confirm-grid button is the only button calling confirmStartingGrid()
+  const btns = document.querySelectorAll('#workspace-container button');
+  for(const b of btns){ if(b.getAttribute('onclick')==='confirmStartingGrid()') return b; }
+  return null;
+}
+
+function renderChairOrderList(){
+  const list=document.getElementById('chair-order-list');
+  if(!list) return;
+  const sorted=[...state.drivers].filter(d=>!d.isDSQ && !d.status.startsWith('DNF')).sort(raceSort);
+  list.innerHTML='';
+  sorted.forEach((d,i)=>{
+    const row=document.createElement('div');
+    row.className='flex items-center justify-between bg-neutral-900/60 px-2 py-1 rounded text-[11px]';
+    row.innerHTML=`<span class="text-white font-bold w-6 pos-font">${i+1}</span>
+      <span class="flex-1 text-neutral-300 driver-font">${d.abbr}</span>
+      <div class="flex space-x-1">
+        <button onclick="chairMoveDriver('${d.abbr}',-1)" class="bg-neutral-800 hover:bg-neutral-700 px-2 rounded text-white">▲</button>
+        <button onclick="chairMoveDriver('${d.abbr}',1)" class="bg-neutral-800 hover:bg-neutral-700 px-2 rounded text-white">▼</button>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+
+function chairMoveDriver(abbr, dir){
+  const sorted=[...state.drivers].filter(d=>!d.isDSQ && !d.status.startsWith('DNF')).sort(raceSort);
+  const idx=sorted.findIndex(d=>d.abbr===abbr);
+  const swapIdx = idx+dir;
+  if(swapIdx<0 || swapIdx>=sorted.length) return;
+  const a=sorted[idx], b=sorted[swapIdx];
+  const tmp=a.totalDistance; a.totalDistance=b.totalDistance; b.totalDistance=tmp;
+  a.totalDistance += dir<0 ? 0.0005 : -0.0005;
+  a.progress = ((a.progress||0) + (dir<0?0.0005:-0.0005) + 1) % 1;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`👑 CHAIR: Order manually updated (${abbr} ${dir<0?'moved up':'moved down'}).`});
+  render();
+  pushState();
+}
+
+// Locks in the current MANUAL ORDER EDITING order as the official starting
+// grid: assigns clean, evenly-spaced grid progress values (instead of the
+// small nudges used for mid-race reordering) so P1...P20 are exact. Start
+// lights are gated on this being done first.
+function confirmStartingGrid(){
+  const sorted=[...state.drivers].filter(d=>!d.isDSQ && !d.status.startsWith('DNF')).sort(raceSort);
+  sorted.forEach((d,i)=>{
+    const p = gridStartProgress(i, sorted.length);
+    d.progress = p;
+    d.totalDistance = p;
+    d._lastProgress = p;
+    d.lastCrossTick = state.tickCount||0;
+  });
+  state.gridConfirmed = true;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:'🏳️ CHAIR: Starting grid confirmed. Ready for start lights.'});
+  render();
+  pushState();
+}
+
+function chairForceOvertake(){
+  const frontAbbr=document.getElementById('chair-overtake-front').value; 
+  const backAbbr=document.getElementById('chair-overtake-back').value;   
+  const text=document.getElementById('chair-overtake-text').value.trim();
+  if(frontAbbr===backAbbr){ showModal('ERROR','You selected the same car.','border-red-600','text-red-500'); return; }
+  const front=state.drivers.find(d=>d.abbr===frontAbbr);
+  const back=state.drivers.find(d=>d.abbr===backAbbr);
+  if(!front||!back) return;
+  back.progress = (front.progress + 0.004) % 1;
+  back.totalDistance = (front.totalDistance||0) + 0.004;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message: text || `👑 CHAIR: ${back.abbr} passed ahead of ${front.abbr}.`});
+  document.getElementById('chair-overtake-text').value='';
+  render();
+  pushState();
+}
+
+function chairTriggerCrash(){
+  const abbr=document.getElementById('chair-crash-driver').value;
+  const text=document.getElementById('chair-crash-text').value.trim();
+  const typeChoice=document.getElementById('chair-crash-type').value;
+  const driver=state.drivers.find(d=>d.abbr===abbr);
+  if(!driver) return;
+  if(!text){ showModal('MISSING DESCRIPTION','Please write the incident description.','border-red-600','text-red-500'); return; }
+
+  driver.status = typeChoice;
+  if(typeChoice==='PIT'){ driver.tyreWear = 100; }
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:text});
+  document.getElementById('chair-crash-text').value='';
+
+  if(typeChoice!=='PIT'){
+    document.getElementById('po-title').innerText = typeChoice==='DNF_CRASH' ? 'CRASH / DNF' : 'ENGINE FAILURE / DNF';
+    document.getElementById('po-name').innerText = `${driver.fname} ${driver.lname}`;
+    const ov=document.getElementById('penalty-overlay');
+    ov.classList.remove('hidden'); ov.style.display='flex';
+    setTimeout(()=>{ov.style.display='none'; ov.classList.add('hidden');},6000);
+  } else {
+    setTimeout(()=>{
+      const d=state.drivers.find(x=>x.abbr===abbr);
+      if(d && d.status==='PIT'){
+        d.status='OK'; d.tyreWear=0;
+        state.logs.push({time:getTimestamp(),sender:'SYSTEM',message:`🟢 ${d.fname} ${d.lname} returned to the track after damage inspection.`});
+        render();
+        pushState();
+      }
+    },6000);
+  }
+  render();
+  pushState();
+}
+
+function getChosenLapCount(fallback){
+  const input = document.getElementById('chair-lap-count-input');
+  if(!input) return fallback;
+  const val = parseInt(input.value, 10);
+  if(!Number.isFinite(val) || val < 1 || val > 200) return null;
+  return val;
+}
+
+function applyLapCountOnly(){
+  const val = getChosenLapCount(null);
+  if(val === null){ showModal('INVALID VALUE','Please enter a valid lap count between 1 and 200.','border-red-600','text-red-500'); return; }
+  state.maxLaps = val;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`👑 CHAIR: Total lap count updated to ${val}.`});
+  render();
+  pushState();
+}
+
+function toggleRacePause(){
+  state.paused = !state.paused;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message: state.paused ? '⏸ CHAIR: Race paused.' : '▶ CHAIR: Race resumed.'});
+  render();
+  pushState();
+}
+
+function resetSimulation(){
+  const chosen = getChosenLapCount(78);
+  if(chosen === null){ showModal('INVALID VALUE','Please enter a valid lap count between 1 and 200.','border-red-600','text-red-500'); return; }
+  const laps = chosen;
+  state = {
+    lap:1, maxLaps: laps, flagStatus:'NORMAL', yellowSector:null,
+    paused: false,
+    gridConfirmed: false,
+    tickCount: 0,
+    fastestLap: {abbr:null, timeSec:null},
+    raceFinished: false,
+    drivers: freshDrivers(),
+    logs:[{time:getTimestamp(),sender:'SYSTEM',message:`Simulation reset. Race set to ${laps} laps, all drivers returned to the starting grid.`}],
+    stewardIncidents:[],
+    _v: (state._v||0) + 1
+  };
+  render();
+  pushState();
+  showModal('RACE RESET', `All simulation states and all 20 driver records have been completely reset.\nTotal Laps: ${laps}`, 'border-red-600','text-red-500');
+}
+
+function renderDirectorWorkspace(container){
+  container.innerHTML = `
+    <div class="flex flex-col h-full space-y-3">
+      <h3 class="f1b text-sm tracking-widest text-red-500 border-b border-neutral-800 pb-2 uppercase">RACE DIRECTOR (${currentSubRole})</h3>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="showLights()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 rounded text-[11px] uppercase">🚦 START LIGHTS</button>
+        <button onclick="extinguishLightsAndStart()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-[11px] uppercase">🏁 EXTINGUISH</button>
+        <button onclick="changeTrackFlag('GREEN')" class="bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-1.5 rounded text-[11px] uppercase">🟢 GREEN</button>
+        <button onclick="changeTrackFlag('VSC')" class="bg-amber-500 hover:bg-amber-600 text-black font-bold py-1.5 rounded text-[11px] uppercase">⏱️ VSC</button>
+        <button onclick="changeTrackFlag('SC')" class="bg-amber-600 hover:bg-amber-700 text-black font-bold py-1.5 rounded text-[11px] uppercase">🚓 SC</button>
+        <button onclick="changeTrackFlag('RED')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 rounded text-[11px] uppercase">🔴 RED</button>
+      </div>
+      <div class="border border-neutral-800 p-2.5 rounded bg-black/40">
+        <span class="text-[10px] text-neutral-500 font-bold uppercase block mb-1.5">Sector Yellow Flag</span>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="triggerSectorYellow(1)" class="bg-neutral-900 border border-amber-500/30 text-amber-500 text-[10px] py-1 rounded font-bold">SECTOR 1</button>
+          <button onclick="triggerSectorYellow(2)" class="bg-neutral-900 border border-amber-500/30 text-amber-500 text-[10px] py-1 rounded font-bold">SECTOR 2</button>
+          <button onclick="triggerSectorYellow(3)" class="bg-neutral-900 border border-amber-500/30 text-amber-500 text-[10px] py-1 rounded font-bold">SECTOR 3</button>
+        </div>
+      </div>
+      <div class="border border-neutral-800 p-2.5 rounded bg-black/40 space-y-2">
+        <span class="text-[10px] text-neutral-500 font-bold uppercase block">PENALTY REFERRAL</span>
+        <div class="text-white text-xs font-bold" id="sel-driver-txt">Driver: ${selectedDriver||'Not selected (click on map)'}</div>
+        <select id="rd-penalty-type" class="w-full bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]">
+          <option value="5">5 SECOND PENALTY</option>
+          <option value="10">10 SECOND PENALTY</option>
+        </select>
+        <button onclick="submitRDIncident()" class="w-full bg-neutral-900 hover:bg-neutral-800 text-[10px] font-bold py-1.5 rounded border border-neutral-800">REFER TO STEWARDS ROOM</button>
+      </div>
+    </div>`;
+}
+
+function submitRDIncident(){
+  if(!selectedDriver){ showModal('MISSING SELECTION','Please select a driver from the left order panel.','border-red-600','text-red-500'); return; }
+  const driver=state.drivers.find(d=>d.abbr===selectedDriver);
+  const penaltySel = document.getElementById('rd-penalty-type');
+  const seconds = penaltySel ? parseInt(penaltySel.value,10) : 5;
+  state.stewardIncidents.push({id:Math.random().toString(36).slice(2,9), driverAbbr:selectedDriver, driverName:`${driver.fname} ${driver.lname}`, penaltyType:`${seconds} SECONDS`, penaltySeconds:seconds, votes:{}, status:'PENDING'});
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`⚖️ INVESTIGATION REFERRAL: A ${seconds}-second penalty request for ${driver.fname} ${driver.lname} has been referred to the Stewards Room.`});
+  render();
+  pushState();
+}
+
+function renderStewardWorkspace(container){
+  container.innerHTML = `
+    <div class="flex flex-col h-full space-y-3">
+      <h3 class="f1b text-sm tracking-widest text-emerald-500 border-b border-neutral-800 pb-2 uppercase">STEWARDS ROOM (${currentSubRole})</h3>
+      <div id="steward-active-incident" class="bg-black/60 p-3 rounded border border-neutral-800 flex-1 flex flex-col justify-center items-center text-center"></div>
+      <div class="grid grid-cols-2 gap-2 mt-auto">
+        <button onclick="voteStewardIncident('GUILTY')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 rounded uppercase">GUILTY / APPROVE PENALTY</button>
+        <button onclick="voteStewardIncident('NOT_GUILTY')" class="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-bold py-2 rounded uppercase">RACING INCIDENT / NO PENALTY</button>
+      </div>
+    </div>`;
+}
+
+// Actually applies an approved time penalty to a driver: adds it to their
+// running penalty total (shown as a badge) and converts the seconds into an
+// equivalent distance deduction so the classification / gap immediately
+// reflects it, instead of just tagging the driver without any real effect.
+function applyPenaltyToDriver(abbr, seconds){
+  const d = state.drivers.find(x=>x.abbr===abbr);
+  if(!d || !seconds) return;
+  d.penaltySeconds = (d.penaltySeconds||0) + seconds;
+  d.penalty = `${d.penaltySeconds}s`;
+  const distancePenalty = seconds / LAP_SECONDS;
+  d.totalDistance = (d.totalDistance||0) - distancePenalty;
+}
+
+function voteStewardIncident(vote){
+  const pending=state.stewardIncidents.find(i=>i.status==='PENDING');
+  if(!pending){ showModal('NONE','There is no active incident to vote on.','border-neutral-500','text-neutral-500'); return; }
+  pending.votes[currentSubRole]=vote;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`⚖️ Steward ${currentSubRole} voted on the ${pending.driverName} incident.`});
+  const votes=Object.values(pending.votes);
+  if(votes.length>=2){
+    const guilty=votes.filter(v=>v==='GUILTY').length;
+    const notGuilty=votes.length-guilty;
+    if(guilty>notGuilty){
+      pending.status='APPROVED';
+      applyPenaltyToDriver(pending.driverAbbr, pending.penaltySeconds || 5);
+      state.logs.push({time:getTimestamp(),sender:'STEWARDS PANEL',message:`🚨 OFFICIAL DECISION: ${pending.penaltyType} penalty approved and applied to ${pending.driverName}!`});
+    } else {
+      pending.status='DISMISSED';
+      state.logs.push({time:getTimestamp(),sender:'STEWARDS PANEL',message:`🛡️ OFFICIAL DECISION: The ${pending.driverName} incident was closed as a 'Racing Incident'.`});
+    }
+  }
+  render();
+  pushState();
+}
+
+function renderTPWorkspace(container){
+  const teamData=TEAMS[currentSubRole]||{name:'TEAM',color:'#ff0000'};
+  container.innerHTML = `
+    <div class="flex flex-col h-full space-y-3">
+      <h3 class="f1b text-sm tracking-widest uppercase border-b border-neutral-800 pb-2" style="color:${teamData.color}">${teamData.name} PIT WALL</h3>
+      <div class="bg-black/40 p-2.5 rounded border border-neutral-800 space-y-2">
+        <span class="text-[10px] text-neutral-400 font-bold uppercase block">TEAM DRIVER PIT STRATEGY</span>
+        <div id="tp-drivers-container" class="space-y-3"></div>
+      </div>
+    </div>`;
+  renderTPDrivers();
+}
+function renderTPDrivers(){
+  const container=document.getElementById('tp-drivers-container');
+  if(!container) return;
+  const teamDrivers=state.drivers.filter(d=>d.team===currentSubRole);
+  // Before rebuilding, remember each driver's currently selected tire choice
+  // so that re-rendering (every 150ms) doesn't keep resetting the selection.
+  const preservedTireChoice = {};
+  teamDrivers.forEach(d=>{
+    const existing = document.getElementById(`tire-choice-${d.abbr}`);
+    if(existing) preservedTireChoice[d.abbr] = existing.value;
+  });
+  container.innerHTML='';
+  teamDrivers.forEach(d=>{
+    const div=document.createElement('div');
+    div.className='flex items-center justify-between border-b border-neutral-900 pb-3 last:border-b-0 text-xs';
+    const pitLabel = d.status==='PIT' ? '<span class="text-sky-400 font-bold animate-pulse ml-1">(IN THE PIT BOX - CHANGING TIRES)</span>' : '';
+    const chosen = preservedTireChoice[d.abbr] || 'S';
+    div.innerHTML=`<div><span class="font-bold text-white block driver-font">${d.fname} ${d.lname} (${d.abbr})</span>
+      <span class="text-[10px] text-neutral-400 tel-font">Tire: <span class="font-bold">${d.tire}</span> (Wear %${Math.floor(d.tyreWear||0)}) - Status: ${d.status}</span>${pitLabel}</div>
+      <div class="flex space-x-1.5">
+        <select id="tire-choice-${d.abbr}" class="bg-black border border-neutral-800 text-white px-2 py-1 rounded text-[11px]" ${d.status==='PIT'?'disabled':''}>
+          <option value="S" ${chosen==='S'?'selected':''}>Soft (S)</option><option value="M" ${chosen==='M'?'selected':''}>Medium (M)</option><option value="H" ${chosen==='H'?'selected':''}>Hard (H)</option>
+        </select>
+        <button onclick="triggerTPPitstop('${d.abbr}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1 rounded text-[10px] uppercase" ${d.status==='PIT'?'disabled':''}>BOX</button>
+      </div>`;
+    container.appendChild(div);
+  });
+}
+function triggerTPPitstop(abbr){
+  const sel=document.getElementById(`tire-choice-${abbr}`); if(!sel) return;
+  const driver=state.drivers.find(d=>d.abbr===abbr);
+  if(!driver) return;
+  if(driver.status.startsWith('DNF')||driver.isDSQ){ showModal('RULE VIOLATION','A pit stop cannot be applied to a car that is out of the race.','border-red-600','text-red-500'); return; }
+  if(driver.status==='PIT'){ return; }
+  const newTire = sel.value;
+  driver.status='PIT';
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`🔧 ${driver.fname} ${driver.lname} entered the pits, changing tires... (New tire: [${newTire}])`});
+  render();
+  pushState();
+  const pitDuration = PIT_STOP_MIN_MS + Math.random()*(PIT_STOP_MAX_MS - PIT_STOP_MIN_MS);
+  setTimeout(()=>{
+    const d=state.drivers.find(x=>x.abbr===abbr);
+    if(d && d.status==='PIT'){
+      d.status='OK'; d.tire=newTire; d.tyreWear=0;
+      state.logs.push({time:getTimestamp(),sender:'SYSTEM',message:`🟢 ${d.fname} ${d.lname} exited the pits back into clean air. (Tire: [${newTire}])`});
+      render();
+      pushState();
+    }
+  }, pitDuration);
+}
+
+function renderTVWorkspace(container){
+  container.innerHTML = `<div class="flex flex-col h-full justify-center items-center text-center space-y-4 p-8">
+    <span class="inline-block w-4 h-4 rounded-full bg-red-600 animate-ping"></span>
+    <h3 class="f1b text-lg tracking-widest text-white uppercase">MONACO PRO TV BROADCAST STANDBY</h3>
+    <p class="text-xs text-neutral-400 max-w-xs leading-relaxed">This screen is for delegates to simultaneously watch the entire race and radio communications.</p></div>`;
+}
+
+function syncWorkspace(){
+  if(currentRole==='chair') populateChairSelectors();
+  else if(currentRole==='director'){ const el=document.getElementById('sel-driver-txt'); if(el) el.innerText='Driver: '+(selectedDriver||'Not selected'); }
+  else if(currentRole==='steward'){
+    const pending=state.stewardIncidents.find(i=>i.status==='PENDING');
+    const div=document.getElementById('steward-active-incident');
+    if(div){
+      if(pending){
+        const voters=Object.keys(pending.votes).join(', ')||'No votes yet';
+        div.innerHTML=`<span class="text-red-500 font-bold uppercase block mb-1 text-xs">INCIDENT UNDER REVIEW</span>
+          <p class="text-xs font-bold text-white">${pending.driverName} - ${pending.penaltyType} Penalty Request</p>
+          <p class="text-[9px] text-neutral-400 mt-1.5">Stewards Who Voted: ${voters}</p>`;
+      } else {
+        div.innerHTML=`<span class="text-neutral-500 text-xs font-bold uppercase">No Active Incident Under Review.</span>`;
+      }
+    }
+  } else if(currentRole==='team_principal'){ renderTPDrivers(); }
+}
+
+function showLights(){
+  if(!state.gridConfirmed){
+    showModal('GRID NOT CONFIRMED','Please arrange the starting grid in the MANUAL ORDER EDITING panel and press "CONFIRM STARTING GRID" before showing the start lights.','border-sky-500','text-sky-400');
+    return;
+  }
+  state.flagStatus='STARTING';
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:'🚦 START PROCEDURE: 5 Red Light System preparing!'});
+  render();
+  pushState();
+  const lights=document.getElementById('start-lights');
+  lights.classList.remove('hidden'); lights.classList.add('grid');
+  for(let i=1;i<=5;i++) document.getElementById('l'+i).style.backgroundColor='#220000';
+  let count=1;
+  if(lightInterval) clearInterval(lightInterval);
+  lightInterval=setInterval(()=>{
+    if(count<=5){ document.getElementById('l'+count).style.backgroundColor='var(--f1-red)'; count++; }
+    else clearInterval(lightInterval);
+  },1000);
+}
+function extinguishLightsAndStart(){
+  clearInterval(lightInterval);
+  const lights=document.getElementById('start-lights');
+  for(let i=1;i<=5;i++) document.getElementById('l'+i).style.backgroundColor='#220000';
+  setTimeout(()=>{ lights.classList.add('hidden'); lights.classList.remove('grid'); },500);
+  state.flagStatus='GREEN';
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:'🟢 LIGHTS OUT AND THE MONACO GRAND PRIX HAS BEGUN!'});
+  render();
+  pushState();
+}
+function applyRedFlagGrid() {
+  const activeSorted = [...state.drivers]
+    .filter(d => !d.isDSQ && !d.status.startsWith('DNF') && d.status !== 'PIT')
+    .sort(raceSort);
+
+  activeSorted.forEach((d, i) => {
+    const newProgress = 0.99 - (i * 0.015);
+    const delta = newProgress - d.progress;
+    d.progress = newProgress;
+    d.totalDistance = (d.totalDistance||0) + delta;
+  });
+}
+function changeTrackFlag(f){
+  state.flagStatus=f; state.yellowSector=null;
+  if(f === 'RED') applyRedFlagGrid(); 
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`📢 Flag status updated: [${f} FLAG]`});
+  render();
+  pushState();
+}
+function triggerSectorYellow(sec){
+  state.flagStatus='YELLOW'; state.yellowSector=sec;
+  state.logs.push({time:getTimestamp(),sender:currentSubRole,message:`📢 SECTOR ${sec} YELLOW FLAG: Local danger on track!`});
+  render();
+  pushState();
+}
+
+function simulationTick(){
+  if(!isLeader) return; // Only the elected "broadcast" client drives the physics; everyone else just displays synced state.
+
+  const f=state.flagStatus;
+  if(f==='RED'||f==='STARTING') { render(); return; }
+  if(state.paused) { render(); return; } // Chair has paused the race; hold positions and stop advancing the simulation.
+
+  state.tickCount = (state.tickCount||0) + 1;
+
+  const noOvertakeZone = (f==='SC'||f==='VSC'||f==='RED');
+  const speedScale = f==='VSC'?0.35 : f==='SC'?0.45 : 1.0;
+
+  const activeCars = state.drivers.filter(d => !d.isDSQ && !d.status.startsWith('DNF') && d.status !== 'PIT');
+
+  state.drivers.forEach(d => {
+    if (d.status.startsWith('DNF') && !d.hidden) {
+      if (!d.passedBy) {
+        d.passedBy = new Set();
+        activeCars.forEach(a => { if (a.progress > d.progress) d.passedBy.add(a.abbr); });
+      }
+      
+      activeCars.forEach(a => {
+        if ((a._lastProgress <= d.progress && a.progress >= d.progress) || (a.progress < a._lastProgress)) {
+          d.passedBy.add(a.abbr);
+        }
+      });
+
+      if (d.passedBy.size >= activeCars.length && !d.hideTimerStarted && activeCars.length > 0) {
+        d.hideTimerStarted = true;
+        setTimeout(() => {
+          d.hidden = true; 
+          render();
+          pushState();
+        }, 1000);
+      }
+    }
+  });
+
+  state.drivers.forEach(d=>{
+    if(d.isDSQ || d.status.startsWith('DNF') || d.status==='PIT') return;
+
+    const tireData = TIRE_DATA[d.tire] || TIRE_DATA.M;
+    d.tyreWear = Math.min(100, (d.tyreWear||0) + tireData.wearRate);
+
+    let localScale = speedScale;
+    if(f==='YELLOW' && state.yellowSector){
+      const carSector = Math.floor(d.progress*3)+1;
+      if(carSector === state.yellowSector) localScale = 0.3;
+    }
+
+    const curve = curvatureAt(d.progress);              
+    const jitter = noOvertakeZone ? 1 : (0.9 + Math.random()*0.2); 
+    const increment = UNIT * curve * d.skill * jitter * localScale * tireData.speedMult;
+
+    d.progress += increment;
+    d.totalDistance = (d.totalDistance||0) + increment;
+    if(d.progress >= 1){ d.progress -= 1; }
+
+    // Fastest-lap tracking: detect when this driver crosses the start/finish
+    // line and compare their lap time against the current record.
+    if(d._lastProgress !== undefined && d.progress < d._lastProgress - 0.5){
+      const lapTicks = state.tickCount - (d.lastCrossTick||0);
+      const lapTimeSec = lapTicks * TICK_MS / 1000;
+      d.lastCrossTick = state.tickCount;
+      if(!state.fastestLap.abbr || lapTimeSec < state.fastestLap.timeSec){
+        state.fastestLap = {abbr:d.abbr, timeSec:lapTimeSec};
+        state.logs.push({time:getTimestamp(), sender:'SYSTEM', message:`⏱ FASTEST LAP: ${d.fname} ${d.lname} - ${lapTimeSec.toFixed(3)}s`});
+      }
+    }
+  });
+
+  const leader = [...state.drivers].filter(d=>!d.isDSQ && !d.status.startsWith('DNF')).sort(raceSort)[0];
+  if(leader && leader._lastProgress !== undefined && leader.progress < leader._lastProgress - 0.5){
+    state.lap += 1;
+    if(state.lap > state.maxLaps){
+      state.flagStatus='RED';
+      state.raceFinished = true;
+      state.logs.push({time:getTimestamp(),sender:'SYSTEM',message:'🏁 CHECKERED FLAG! Monaco GP MUN Race Simulation completed!'});
+    }
+  }
+  state.drivers.forEach(d=>{ d._lastProgress = d.progress; });
+
+  render();
+  pushState();
+}
+function leaderAbbr(){
+  const l=[...state.drivers].filter(d=>!d.isDSQ && !d.status.startsWith('DNF')).sort(raceSort)[0];
+  return l?l.abbr:null;
+}
+
+function startEngine(){
+  if(tickInterval) clearInterval(tickInterval);
+  tickInterval = setInterval(simulationTick, TICK_MS);
+}
+function stopEngine(){
+  if(tickInterval) clearInterval(tickInterval);
+  tickInterval = null;
+}
+
+function showModal(title,text,borderClass='border-yellow-500',titleClass='text-yellow-500'){
+  const modal=document.getElementById('custom-modal');
+  const mTitle=document.getElementById('modal-title');
+  const mBody=document.getElementById('modal-body');
+  modal.classList.remove('hidden');
+  mTitle.innerText=title; mTitle.className=`f1b text-lg tracking-widest uppercase block mb-3 ${titleClass}`;
+  modal.firstElementChild.className=`max-w-md w-full bg-neutral-950 border-2 rounded-lg p-6 text-center shadow-2xl relative ${borderClass}`;
+  mBody.innerHTML=text.replace(/\n/g,'<br>');
+}
+function closeModal(){ document.getElementById('custom-modal').classList.add('hidden'); }
+function getTimestamp(){ return new Date().toTimeString().split(' ')[0]; }
+
+// ================= MULTI-SCREEN SYNC (FIREBASE REALTIME DATABASE) =================
+// GitHub Pages is static hosting and has no server/database of its own.
+// So for real-time sync between screens we use a free Firebase Realtime
+// Database project. Fill in the firebaseConfig object below with your own
+// Firebase project's details. The steps are explained at the bottom of this
+// file / in the chat setup instructions.
+
+// ======= FILL THIS IN WITH YOUR OWN FIREBASE PROJECT =======
+// Firebase Console > Project Settings > General > "Your apps" > Web app > SDK config
+const firebaseConfig = {
+  apiKey: "AIzaSyD4plOVNeBupn6jSamX9AZDfkLoTuLYmE4",
+  authDomain: "f1mun-monaco.firebaseapp.com",
+  databaseURL: "https://f1mun-monaco-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "f1mun-monaco",
+  storageBucket: "f1mun-monaco.firebasestorage.app",
+  messagingSenderId: "543752025901",
+  appId: "1:543752025901:web:5d2df24a1b9026318145a4"
+};
+// ===========================================================
+
+const CLIENT_ID = 'c_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+const STATE_PATH = 'f1mun/monacoRaceState';
+const LEADER_PATH = 'f1mun/leaderHeartbeat';
+const SYNC_MS = 700;
+const LEADER_TIMEOUT_MS = 2500;
+const LEADER_SETTLE_MS = 220;
+let isLeader = true;       // the race always starts locally right away
+let syncDisabled = false;  // becomes true if Firebase is unreachable (local-only mode)
+let db = null;
+let firebaseReady = false;
+let applyingRemoteState = false;
+
+function initFirebase(){
+  try{
+    if(firebaseConfig.apiKey.includes('BURAYA_')){
+      console.warn('Firebase configuration missing: fill in the firebaseConfig fields. Running in local mode only for now.');
+      firebaseReady = false;
+      syncDisabled = true;
+      return;
+    }
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    firebaseReady = true;
+  }catch(e){
+    console.error('Firebase could not be initialized:', e);
+    firebaseReady = false;
+    syncDisabled = true;
+  }
+}
+
+async function pushState(){
+  if(syncDisabled || !firebaseReady || applyingRemoteState) return;
+  try{
+    state._v = (state._v||0) + 1;
+    state._by = CLIENT_ID;
+    state._t = Date.now();
+    await db.ref(STATE_PATH).set(state);
+  }catch(e){ console.error('pushState error:', e); }
+}
+
+async function pullState(){
+  if(syncDisabled || !firebaseReady) return;
+  try{
+    const snap = await db.ref(STATE_PATH).once('value');
+    if(snap.exists()){
+      const remote = snap.val();
+      if((remote._v||0) > (state._v||0)){
+        state = remote;
+        render();
+      }
+    }
+  }catch(e){ /* no shared state yet, which is normal on first load */ }
+}
+
+// Real-time listener: any change made on one screen is pushed by Firebase
+// to all other connected screens instantly (without waiting for polling).
+function attachRealtimeListener(){
+  if(!firebaseReady) return;
+  db.ref(STATE_PATH).on('value', (snap)=>{
+    if(!snap.exists()) return;
+    const remote = snap.val();
+    if(remote._by === CLIENT_ID) return; // ignore the update we just sent ourselves
+    if((remote._v||0) > (state._v||0)){
+      applyingRemoteState = true;
+      state = remote;
+      render();
+      applyingRemoteState = false;
+    }
+  });
+}
+
+async function claimLeadership(){
+  const now = Date.now();
+  await db.ref(LEADER_PATH).set({clientId: CLIENT_ID, ts: now});
+  // Brief wait: if another tab also claimed leadership at the same time,
+  // whoever wrote last (and remains in the database) wins, and we fall
+  // back to being a follower.
+  await new Promise(r=>setTimeout(r, LEADER_SETTLE_MS));
+  try{
+    const snap = await db.ref(LEADER_PATH).once('value');
+    const info = snap.exists() ? snap.val() : null;
+    return !!(info && info.clientId === CLIENT_ID);
+  }catch(e){ return false; }
+}
+
+async function heartbeat(){
+  if(syncDisabled || !firebaseReady) return;
+  try{
+    let leaderInfo = null;
+    try{
+      const snap = await db.ref(LEADER_PATH).once('value');
+      if(snap.exists()) leaderInfo = snap.val();
+    }catch(e){ leaderInfo = null; }
+
+    const now = Date.now();
+    const stale = !leaderInfo || (now - leaderInfo.ts > LEADER_TIMEOUT_MS);
+    const wasLeader = isLeader;
+    let nowLeader;
+
+    if(stale || leaderInfo.clientId === CLIENT_ID){
+      nowLeader = await claimLeadership();
+    } else {
+      nowLeader = false;
+    }
+    isLeader = nowLeader;
+
+    if(isLeader) await pushState();
+
+    if(isLeader && !wasLeader) startEngine();
+    else if(!isLeader && wasLeader) stopEngine();
+
+    updateSyncBadge();
+  }catch(e){ console.error('heartbeat error:', e); }
+}
+
+window.onload = async function(){
+  overlay = document.getElementById('sector-overlay');
+  pathLen = overlay.getTotalLength();
+  initCars();
+
+  // The race starts locally immediately, regardless of network/sync status.
+  startEngine();
+  render();
+
+  initFirebase();
+  if(!firebaseReady){
+    syncDisabled = true;
+    isLeader = true;
+    updateSyncBadge();
+    return;
+  }
+
+  await pullState();
+  render();
+  attachRealtimeListener();
+  await heartbeat();
+  setInterval(heartbeat, SYNC_MS);
+};
+</script>
+</body>
+</html>
